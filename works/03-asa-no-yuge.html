@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>朝のゆげ  — 間（ま）</title>
+<meta name="description" content="間（ま）第三作『朝のゆげ』。今日が、まだ何者でもない時間。" />
+<style>
+  :root { --bg:#100d0b; --ink:#ece2d2; --ink-dim:#71665a; --warm:#ffe6bf; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 2.8s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.0s;}
+  .poem p:nth-of-type(2){animation-delay:2.8s;}
+  .poem p:nth-of-type(3){animation-delay:4.6s;}
+  .poem p:nth-of-type(4){animation-delay:6.4s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="朝のゆげ">
+    <div class="title">第三作　朝のゆげ</div>
+    <p>お湯がわいた、それだけのこと。</p>
+    <p>立ちのぼる白が、ゆっくりほどけて、</p>
+    <p>天井のあたりで、名前をなくす。</p>
+    <p>今日が、まだ何者でもない時間。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="02-ame-no-basutei.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 朝のゆげ — やかんから立ちのぼる湯気。
+ * あたたかい白が、ゆっくりほどけ、上にいくほど広がって、名前をなくして消える。
+ * 急がない。今日が、まだ何者でもない時間。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,puffs=[],t0=performance.now();
+  function resize(){ dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr); h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px'; }
+  resize(); addEventListener('resize',resize);
+
+  const srcX=()=> w*0.5, srcY=()=> h*0.92;
+  function spawn(){
+    puffs.push({
+      x:srcX()+(Math.random()-0.5)*8*dpr, y:srcY(),
+      r:(10+Math.random()*16)*dpr, life:0,
+      max:9+Math.random()*5,                 // 秒。ゆっくり生きる
+      drift:(Math.random()-0.5)*8*dpr,
+      sway:Math.random()*Math.PI*2
+    });
+  }
+
+  let last=performance.now(), acc=0;
+  function draw(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    // ほのかに、あたたかい下地
+    ctx.clearRect(0,0,w,h);
+    const base=ctx.createRadialGradient(srcX(),h,0,srcX(),h,h*0.9);
+    base.addColorStop(0,'rgba(40,28,18,0.5)'); base.addColorStop(1,'rgba(16,13,11,0)');
+    ctx.fillStyle=base; ctx.fillRect(0,0,w,h);
+
+    // やかんの口の、小さなあたたかい光
+    const kg=ctx.createRadialGradient(srcX(),srcY(),0,srcX(),srcY(),40*dpr);
+    kg.addColorStop(0,'rgba(255,210,150,0.18)'); kg.addColorStop(1,'rgba(255,210,150,0)');
+    ctx.fillStyle=kg; ctx.fillRect(0,0,w,h);
+
+    acc+=dt;
+    if(!reduce && acc>0.55){ acc=0; spawn(); }
+
+    ctx.globalCompositeOperation='lighter';
+    for(let i=puffs.length-1;i>=0;i--){
+      const p=puffs[i];
+      p.life+=dt;
+      const k=p.life/p.max;                  // 0→1
+      if(k>=1){ puffs.splice(i,1); continue; }
+      // 上にいくほど、ゆっくり、広がって、ほどける
+      const rise=(1-Math.pow(1-k,1.6));       // ゆっくり立ちのぼる
+      const y=srcY()-(srcY()-h*0.12)*rise;
+      p.sway+=dt*0.6;
+      const x=p.x+p.drift*rise*4+Math.sin(p.sway)*18*dpr*k;
+      const r=p.r*(1+k*3.2);
+      // 生まれてふくらみ、やがて薄れて名前をなくす
+      const alpha=Math.sin(Math.min(k,1)*Math.PI)*0.10*(1-k*0.3);
+      const g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,`rgba(255,243,225,${alpha})`);
+      g.addColorStop(1,'rgba(255,243,225,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    if(!reduce) requestAnimationFrame(draw);
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、立ちのぼる湯気の一瞬を静かに置く
+    for(let i=0;i<8;i++){ spawn(); puffs[i].life=i*1.0; }
+    requestAnimationFrame(function(n){ last=n; draw(n+16); });
+  } else {
+    for(let i=0;i<6;i++){ spawn(); puffs[i].life=i*1.4; } // 最初から少し湯気がある
+    requestAnimationFrame(draw);
+  }
+})();
+</script>
+</body>
+</html>

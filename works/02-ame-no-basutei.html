@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>雨のバス停  — 間（ま）</title>
+<meta name="description" content="間（ま）第二作『雨のバス停』。雨は、誰のことも責めない。" />
+<style>
+  :root { --bg:#0c0f12; --ink:#dfe4e6; --ink-dim:#5f6a6f; --glass:#9fc0cc; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 2.8s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.0s;}
+  .poem p:nth-of-type(2){animation-delay:2.8s;}
+  .poem p:nth-of-type(3){animation-delay:4.6s;}
+  .poem p:nth-of-type(4){animation-delay:6.4s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--glass); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="雨のバス停">
+    <div class="title">第二作　雨のバス停</div>
+    <p>バスは、まだ来ない。</p>
+    <p>でも、急ぐ理由も、いまはない。</p>
+    <p>ひさしの下で、世界がすこし、やわらかくなる。</p>
+    <p>雨は、誰のことも責めない。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="01-sanji-no-mado.html">← 前の作品</a>
+    <a href="03-asa-no-yuge.html">次の作品 →</a>
+  </nav>
+
+<script>
+/*
+ * 雨のバス停 — ガラス越しの雨。
+ * 細い雨が静かに降り、ときどき一粒だけが、自分の重さでゆっくり滑り落ちる。
+ * 急がない。雨は誰のことも責めない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,drops=[],trickles=[];
+  function resize(){ dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr); h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    init();
+  }
+  function init(){
+    const n=Math.round((w*h)/(26000*dpr));
+    drops=[];
+    for(let i=0;i<n;i++) drops.push({
+      x:Math.random()*w, y:Math.random()*h,
+      len:(8+Math.random()*22)*dpr, sp:(40+Math.random()*70)*dpr, a:0.04+Math.random()*0.08
+    });
+    trickles=[];
+  }
+  resize(); addEventListener('resize',resize);
+
+  let last=performance.now();
+  function draw(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    ctx.clearRect(0,0,w,h);
+    // 窓ガラスのうっすらした冷たさ
+    const base=ctx.createLinearGradient(0,0,0,h);
+    base.addColorStop(0,'rgba(18,26,30,0.0)'); base.addColorStop(1,'rgba(0,4,8,0.4)');
+    ctx.fillStyle=base; ctx.fillRect(0,0,w,h);
+
+    // 細い雨
+    ctx.lineCap='round';
+    for(const d of drops){
+      d.y+=d.sp*dt;
+      if(d.y-d.len>h){ d.y=-d.len; d.x=Math.random()*w; }
+      ctx.strokeStyle=`rgba(159,192,204,${d.a})`;
+      ctx.lineWidth=1*dpr;
+      ctx.beginPath(); ctx.moveTo(d.x,d.y-d.len); ctx.lineTo(d.x,d.y); ctx.stroke();
+    }
+
+    // ときどき、一粒が滑り落ちる
+    if(!reduce && Math.random()<0.012 && trickles.length<14){
+      trickles.push({x:Math.random()*w, y:Math.random()*h*0.4, r:(1.5+Math.random()*2.5)*dpr, sp:0});
+    }
+    for(let i=trickles.length-1;i>=0;i--){
+      const t=trickles[i];
+      t.sp+=18*dpr*dt; t.y+=t.sp*dt;
+      const grd=ctx.createRadialGradient(t.x,t.y,0,t.x,t.y,t.r*2.2);
+      grd.addColorStop(0,'rgba(200,222,230,0.5)'); grd.addColorStop(1,'rgba(200,222,230,0)');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(t.x,t.y,t.r*2.2,0,7); ctx.fill();
+      // 滑った跡
+      ctx.strokeStyle='rgba(159,192,204,0.05)'; ctx.lineWidth=t.r;
+      ctx.beginPath(); ctx.moveTo(t.x,t.y-t.r*2); ctx.lineTo(t.x,t.y); ctx.stroke();
+      if(t.y>h+t.r) trickles.splice(i,1);
+    }
+
+    if(!reduce) requestAnimationFrame(draw);
+  }
+  if(reduce){
+    // 動きを止める設定なら、静かな雨の一枚をそっと置く
+    ctx.fillStyle='rgba(0,4,8,0.4)'; ctx.fillRect(0,0,w,h);
+    for(const d of drops){ ctx.strokeStyle=`rgba(159,192,204,${d.a})`; ctx.lineWidth=1*dpr;
+      ctx.beginPath(); ctx.moveTo(d.x,d.y-d.len); ctx.lineTo(d.x,d.y); ctx.stroke(); }
+  } else requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

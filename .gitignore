@@ -1,0 +1,5 @@
+# Claude Code local config / memory (not part of the artwork)
+.claude/
+
+# macOS
+.DS_Store

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>三時の窓  — 間（ま）</title>
+<meta name="description" content="間（ま）第一作『三時の窓』。光は、誰も見ていない時間に、いちばんていねいに動く。" />
+<style>
+  :root { --bg:#0d0e10; --ink:#e8e3d8; --ink-dim:#6f6b62; --light:#f4e6c5; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title {
+    font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em;
+    color:var(--ink-dim); margin-bottom:1.5em;
+  }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 2.6s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.0s;}
+  .poem p:nth-of-type(3){animation-delay:4.8s;}
+  .poem p:nth-of-type(4){animation-delay:6.6s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--light); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom {
+    position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem);
+    display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em;
+  }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="三時の窓">
+    <div class="title">第一作　三時の窓</div>
+    <p>誰も見ていない時間に、</p>
+    <p>光は一番ていねいに動く。</p>
+    <p>机の角を、ゆっくり横切って、</p>
+    <p>「まだ大丈夫だよ」とだけ言って、消える。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="../index.html">← 間</a>
+    <a href="02-ame-no-basutei.html">次の作品 →</a>
+  </nav>
+
+<script>
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr;
+  function resize(){ dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr); h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px'; }
+  resize(); addEventListener('resize',resize);
+  const PERIOD=240, start=performance.now();
+  function draw(now){
+    const phase=(((now-start)/1000)/PERIOD)%1, x=phase*w;
+    ctx.clearRect(0,0,w,h);
+    const base=ctx.createLinearGradient(0,0,0,h);
+    base.addColorStop(0,'rgba(20,21,24,0)'); base.addColorStop(1,'rgba(0,0,0,0.35)');
+    ctx.fillStyle=base; ctx.fillRect(0,0,w,h);
+    const beamW=w*0.32, g=ctx.createLinearGradient(x-beamW,0,x+beamW,0);
+    g.addColorStop(0,'rgba(244,230,197,0)'); g.addColorStop(.5,'rgba(244,230,197,0.10)'); g.addColorStop(1,'rgba(244,230,197,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    const edgeY=h*0.62, dist=Math.abs(phase-0.5), glow=Math.max(0,1-dist*6);
+    if(glow>0){ const rg=ctx.createRadialGradient(x,edgeY,0,x,edgeY,w*0.18);
+      rg.addColorStop(0,`rgba(244,230,197,${0.12*glow})`); rg.addColorStop(1,'rgba(244,230,197,0)');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,w,h); }
+    if(!reduce) requestAnimationFrame(draw);
+  }
+  if(reduce){ const x=w*0.5,beamW=w*0.32,g=ctx.createLinearGradient(x-beamW,0,x+beamW,0);
+    g.addColorStop(0,'rgba(244,230,197,0)');g.addColorStop(.5,'rgba(244,230,197,0.10)');g.addColorStop(1,'rgba(244,230,197,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+  } else requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
