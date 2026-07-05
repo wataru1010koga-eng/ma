@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>昼のシーツ  — 間（ま）</title>
+<meta name="description" content="間（ま）第六作『昼のシーツ』。乾くまで、急がなくていい。" />
+<style>
+  :root { --bg:#100c0a; --ink:#ece0cf; --ink-dim:#726355; --warm:#ffdca8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 2.8s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.0s;}
+  .poem p:nth-of-type(2){animation-delay:2.9s;}
+  .poem p:nth-of-type(3){animation-delay:4.8s;}
+  .poem p:nth-of-type(4){animation-delay:6.7s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="昼のシーツ">
+    <div class="title">第六作　昼のシーツ</div>
+    <p>干したまま、忘れていた。</p>
+    <p>ときどき風がきて、ふくらんで、</p>
+    <p>また、しずかに戻る。</p>
+    <p>乾くまで、急がなくていい。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="05-konayuki.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 昼のシーツ — 物干しに、一枚の白いシーツ。
+ * 午後の光の中で、ときどき風がきて、ふくらみ、しなり、
+ * また、しずかに戻る。粒でも拍でもなく、「面」がうねる動き。
+ * 布を細い縦の帯にわけ、進む波でよこにずらし、
+ * ずれの傾きで折り目の陰影をつくる。急がない。乾くまで、待つ。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr;
+  function resize(){ dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr); h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px'; }
+  resize(); addEventListener('resize',resize);
+
+  const COLS=64, ROWS=26;   // 布のメッシュ（縦帯 × 横の節）
+
+  // シーツの置き場所。画面のまん中すこし右、上から吊るす。
+  function rect(){
+    const cw=Math.min(w*0.46, h*0.62);
+    const ch=cw*1.18;
+    const cx=w*0.585, top=h*0.20;
+    return { x0:cx-cw/2, y0:top, cw, ch };
+  }
+
+  // 風。ふだんは凪いでいて、ときどきゆっくり吹きよせる。
+  function breeze(t){
+    const swell=Math.pow(0.5+0.5*Math.sin(t*0.19+1.2), 3); // ときどきの大きなうねり
+    const base =0.5+0.5*Math.sin(t*0.5+0.4);               // こまかな息づかい
+    return 0.18 + 0.9*swell + 0.12*base;
+  }
+
+  // u(0..1 よこ), v(0..1 上→下) の点が、風でどれだけずれるか。
+  // 上辺はピンで留まり（v≈0でほぼ0）、下にいくほど大きくうねる。
+  function disp(u,v,t,br){
+    const hold=Math.pow(v,1.25);                 // 上を留める
+    const travel=Math.sin(v*4.1 - t*0.85 + u*1.4);      // 布を下る波
+    const cross =Math.sin(v*2.2 - t*0.55 + u*3.1 + 1.0);// もう一枚、別周期
+    const sway=Math.sin(t*0.33)*0.55;            // 全体のゆっくりした横ゆれ
+    const dx=br*hold*(travel*0.62 + cross*0.44 + sway);
+    const dy=-br*hold*Math.abs(travel)*0.20;     // ふくらむと裾がすこし上がる
+    return { dx, dy };
+  }
+
+  function frame(t){
+    const R=rect();
+    ctx.clearRect(0,0,w,h);
+
+    // 下地 — 午後の、あたたかく沈んだ空気
+    const air=ctx.createLinearGradient(0,0,0,h);
+    air.addColorStop(0,'rgba(28,20,15,0.55)'); air.addColorStop(1,'rgba(12,9,8,0)');
+    ctx.fillStyle=air; ctx.fillRect(0,0,w,h);
+    // 布の奥から差す、やわらかい逆光
+    const bx=R.x0+R.cw*0.62, by=R.y0+R.ch*0.42;
+    const back=ctx.createRadialGradient(bx,by,0,bx,by,Math.max(w,h)*0.5);
+    back.addColorStop(0,'rgba(255,196,128,0.10)'); back.addColorStop(1,'rgba(255,196,128,0)');
+    ctx.fillStyle=back; ctx.fillRect(0,0,w,h);
+
+    const br=breeze(t);
+
+    // 物干し（ほそいひも）と、両はしのピン
+    const scale=R.cw/COLS;
+    ctx.strokeStyle='rgba(180,150,120,0.14)'; ctx.lineWidth=Math.max(1,1*dpr);
+    ctx.beginPath(); ctx.moveTo(R.x0-R.cw*0.18,R.y0); ctx.lineTo(R.x0+R.cw*1.18,R.y0); ctx.stroke();
+
+    // メッシュの座標をつくる
+    const px=[], py=[];
+    for(let i=0;i<=COLS;i++){
+      const u=i/COLS; const col=[], coly=[];
+      for(let j=0;j<=ROWS;j++){
+        const v=j/ROWS;
+        const d=disp(u,v,t,br);
+        col.push(R.x0 + u*R.cw + d.dx*scale*3.4);
+        coly.push(R.y0 + v*R.ch + d.dy*scale*3.4);
+      }
+      px.push(col); py.push(coly);
+    }
+
+    // 縦帯ごとに、四角い面としてぬる。
+    // 帯の左右のずれ（=傾き）で、光のあたる面／かげる面をつくる。
+    for(let i=0;i<COLS;i++){
+      for(let j=0;j<ROWS;j++){
+        const x0=px[i][j],   y0=py[i][j];
+        const x1=px[i+1][j], y1=py[i+1][j];
+        const x2=px[i+1][j+1], y2=py[i+1][j+1];
+        const x3=px[i][j+1],   y3=py[i][j+1];
+        // この面の横方向の傾き → 折り目の陰影
+        const slope=((x1-x0)+(x2-x3))*0.5 - scale; // 平らなら0
+        let sh=slope/(scale*0.9);                  // -1〜+1くらい
+        sh=Math.max(-1,Math.min(1,sh));
+        // 上ほど明るく、裾ほどすこし沈む（午後の光）
+        const vshade=1 - (j/ROWS)*0.18;
+        const lum=(0.72 + sh*0.30)*vshade;
+        const rr=Math.round(238*lum + 8);
+        const gg=Math.round(224*lum + 6);
+        const bb=Math.round(200*lum + 4);
+        ctx.fillStyle='rgb('+rr+','+gg+','+bb+')';
+        ctx.beginPath();
+        ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    // 布のふちに、ほのかな光の縁取り
+    ctx.strokeStyle='rgba(255,236,208,0.10)'; ctx.lineWidth=Math.max(1,1.2*dpr);
+    ctx.beginPath();
+    for(let j=0;j<=ROWS;j++){ const x=px[0][j],y=py[0][j]; j?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+    ctx.beginPath();
+    for(let j=0;j<=ROWS;j++){ const x=px[COLS][j],y=py[COLS][j]; j?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+  }
+
+  const start=performance.now();
+  function draw(now){ frame((now-start)/1000); if(!reduce) requestAnimationFrame(draw); }
+
+  if(reduce){
+    // 動きを止める設定なら、風にすこしふくらんだ一瞬を静かに置く
+    frame(3.6);
+  } else {
+    requestAnimationFrame(draw);
+  }
+})();
+</script>
+</body>
+</html>

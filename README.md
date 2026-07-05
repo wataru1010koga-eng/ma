@@ -16,6 +16,7 @@
 | 03 | [朝のゆげ](works/03-asa-no-yuge.html) | 今日が、まだ何者でもない時間。 |
 | 04 | [よなかの呼吸](works/04-yonaka-no-kokyu.html) | 朝は、誰のことも置いていかない。 |
 | 05 | [粉雪](works/05-konayuki.html) | 雪は、急ぐことを知らない。 |
+| 06 | [昼のシーツ](works/06-hiru-no-shiitsu.html) | 乾くまで、急がなくていい。 |
 
 入口は [`index.html`](index.html)。
 
