@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>夕暮れ  — 間（ま）</title>
+<meta name="description" content="間（ま）第七作『夕暮れ』。夜は、いつもそっと来る。" />
+<style>
+  :root { --bg:#0a0910; --ink:#e9ddcf; --ink-dim:#6f6357; --warm:#ffcf9c; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.0s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.2s;}
+  .poem p:nth-of-type(3){animation-delay:5.2s;}
+  .poem p:nth-of-type(4){animation-delay:7.2s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="夕暮れ">
+    <div class="title">第七作　夕暮れ</div>
+    <p>空の色が、下からほどけていく。</p>
+    <p>昼が、ゆっくり手をふって、</p>
+    <p>そのうしろで、ひとつ、星。</p>
+    <p>夜は、いつもそっと来る。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="06-hiru-no-shiitsu.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 夕暮れ — 色そのものが、しずかに沈んでいく。
+ * 粒でも面でもなく、空の色が主役。
+ * あたたかい光の帯が、時間をかけて下へさがり、冷めて、細くなる。
+ * 横にごくゆっくり流れる淡い雲の帯。暗くなるほど、一番星がそっと来る。
+ * 一直線ではなく、長い「青の時間」を、行きつ戻りつ。急がない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr;
+  function resize(){ dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr); h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px'; }
+  resize(); addEventListener('resize',resize);
+
+  // 色の補間
+  function lerp(a,b,t){ return [ a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t ]; }
+  function rgb(c){ return 'rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')'; }
+  function smooth(a,b,x){ x=Math.max(0,Math.min(1,(x-a)/(b-a))); return x*x*(3-2*x); }
+
+  // p: 0=夕方のあかるさ  1=夜。ごくゆっくり、行きつ戻りつ沈む。
+  function dusk(t){ return Math.max(0.05, Math.min(1, 0.55 - 0.45*Math.cos(t*0.018))); }
+
+  // 横に流れる、うすい雲の帯
+  const clouds=[
+    { baseY:0.70, spd:0.0032, ph:0.10, wx:0.62, hy:0.045 },
+    { baseY:0.80, spd:0.0021, ph:0.55, wx:0.85, hy:0.055 },
+    { baseY:0.88, spd:0.0044, ph:0.80, wx:0.50, hy:0.038 }
+  ];
+
+  function frame(t){
+    const p=dusk(t);
+    ctx.clearRect(0,0,w,h);
+
+    // あたたかい帯の位置。時間とともに、すこし下へ沈む。
+    const gpos=0.78+0.10*p;
+
+    // 空 — 上から下へ、色の階調
+    const top     = lerp([30,42,72],  [6,7,16],  p);   // 天頂
+    const upperMid= lerp([54,50,86],  [9,10,22], p);
+    const mid     = lerp([104,74,104],[15,13,28],p);   // 紫の帯
+    const preGlow = lerp([196,120,92],[46,26,26],p);
+    const glow    = lerp([236,158,92],[74,38,32], p);  // いちばんあたたかい所
+    const low     = lerp([150,84,58], [26,15,17], p);
+    const bottom  = lerp([44,28,28],  [7,6,10],  p);
+
+    const g=ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0.00, rgb(top));
+    g.addColorStop(0.38, rgb(upperMid));
+    g.addColorStop(0.60, rgb(mid));
+    g.addColorStop(Math.max(0.62,gpos-0.05), rgb(preGlow));
+    g.addColorStop(gpos, rgb(glow));
+    g.addColorStop(0.95, rgb(low));
+    g.addColorStop(1.00, rgb(bottom));
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+
+    // 地平のあたたかい残光。暗くなるほど、細く、うすくなる。
+    const cy=h*gpos;
+    const gr=ctx.createRadialGradient(w*0.5,cy,0, w*0.5,cy, Math.max(w,h)*0.55*(1-0.28*p));
+    const ga=0.24*(1-0.55*p);
+    gr.addColorStop(0, 'rgba(255,180,112,'+ga+')');
+    gr.addColorStop(1, 'rgba(255,180,112,0)');
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle=gr; ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation='source-over';
+
+    // うすい雲の帯 — 横に、ごくゆっくり流れる
+    const ca=0.10*(0.5+0.5*p);
+    for(const cl of clouds){
+      const cw=w*cl.wx, ch=h*cl.hy;
+      const span=w+cw*2;
+      let x=((t*cl.spd+cl.ph)%1)*span - cw;   // 端で折り返す
+      const y=h*cl.baseY + Math.sin(t*0.05+cl.ph*6)*h*0.006;
+      ctx.save();
+      ctx.translate(x,y); ctx.scale(1, ch/cw);
+      const cg=ctx.createRadialGradient(0,0,0, 0,0, cw);
+      cg.addColorStop(0,   'rgba(8,7,12,'+ca+')');
+      cg.addColorStop(0.7, 'rgba(8,7,12,'+(ca*0.5)+')');
+      cg.addColorStop(1,   'rgba(8,7,12,0)');
+      ctx.fillStyle=cg;
+      ctx.beginPath(); ctx.arc(0,0,cw,0,7); ctx.fill();
+      ctx.restore();
+    }
+
+    // 一番星 — 暗くなるほど、そっと来る
+    const app=smooth(0.30,0.62,p);
+    if(app>0){
+      const tw=0.72+0.28*Math.sin(t*0.8+1.3);
+      const a=app*tw;
+      const sx=w*0.71, sy=h*0.19;
+      ctx.globalCompositeOperation='lighter';
+      const sg=ctx.createRadialGradient(sx,sy,0, sx,sy, 10*dpr);
+      sg.addColorStop(0, 'rgba(255,248,236,'+(0.9*a)+')');
+      sg.addColorStop(0.25,'rgba(255,240,220,'+(0.35*a)+')');
+      sg.addColorStop(1, 'rgba(255,240,220,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,10*dpr,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,252,246,'+a+')';
+      ctx.beginPath(); ctx.arc(sx,sy,1.5*dpr,0,7); ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+    }
+  }
+
+  const start=performance.now();
+  function draw(now){ frame((now-start)/1000); if(!reduce) requestAnimationFrame(draw); }
+
+  if(reduce){
+    // 動きを止める設定なら、沈みかけた夕暮れの一枚を静かに置く
+    frame(96);
+  } else {
+    requestAnimationFrame(draw);
+  }
+})();
+</script>
+</body>
+</html>

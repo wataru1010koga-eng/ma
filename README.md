@@ -17,6 +17,7 @@
 | 04 | [よなかの呼吸](works/04-yonaka-no-kokyu.html) | 朝は、誰のことも置いていかない。 |
 | 05 | [粉雪](works/05-konayuki.html) | 雪は、急ぐことを知らない。 |
 | 06 | [昼のシーツ](works/06-hiru-no-shiitsu.html) | 乾くまで、急がなくていい。 |
+| 07 | [夕暮れ](works/07-yugure.html) | 夜は、いつもそっと来る。 |
 
 入口は [`index.html`](index.html)。
 
