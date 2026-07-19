@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>窓の結露  — 間（ま）</title>
+<meta name="description" content="間（ま）第八作『窓の結露』。急がなくても、ちゃんとたどりつく。" />
+<style>
+  :root { --bg:#0a0d12; --ink:#dfe4ea; --ink-dim:#63697a; --cool:#bcd4e6; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.0s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.2s;}
+  .poem p:nth-of-type(3){animation-delay:5.2s;}
+  .poem p:nth-of-type(4){animation-delay:7.2s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--cool); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="窓の結露">
+    <div class="title">第八作　窓の結露</div>
+    <p>外は、ずいぶん冷えているらしい。</p>
+    <p>くもったガラスに、小さな粒がいくつも。</p>
+    <p>ひとつが重くなって、つう、と下へ。</p>
+    <p>急がなくても、ちゃんとたどりつく。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="07-yugure.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 窓の結露 — あたたかい部屋と、冷えた外気のあいだ。
+ * ガラスは白くくもり、小さな粒がいくつも張りつく。
+ * やがて、ひとつが重くなって、つう、と一筋、下へ流れる。
+ * 通ったあとだけ、向こうの冷たい光がすこし見えて、
+ * そのすじも、時間をかけてまた、そっとくもっていく。
+ * 落ちる雨ではなく、内側のガラスの、ゆっくりした一筋。急がない。
+ */
+(function(){
+  const view=document.getElementById('c'), vctx=view.getContext('2d');
+  const fog=document.createElement('canvas'), fctx=fog.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr, beads=[], drops=[];
+
+  const FILM='22,28,37';                 // 曇りガラスの色（暗く、冷たい）
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=view.width=fog.width=Math.floor(innerWidth*dpr);
+    h=view.height=fog.height=Math.floor(innerHeight*dpr);
+    view.style.width=innerWidth+'px'; view.style.height=innerHeight+'px';
+    initFog(); scatter();
+  }
+  function initFog(){
+    fctx.globalCompositeOperation='source-over';
+    fctx.fillStyle='rgba('+FILM+',1)'; fctx.fillRect(0,0,w,h);
+  }
+  function scatter(){
+    beads=[];
+    const n=Math.min(130, Math.round(innerWidth*innerHeight/8200));
+    for(let i=0;i<n;i++){
+      beads.push({ x:Math.random()*w, y:Math.random()*h,
+        r:(1.1+Math.random()*3.0)*dpr, ph:Math.random()*6.28, tw:0.3+Math.random()*0.8 });
+    }
+  }
+
+  // ガラスの向こう — 冷たい光が、ごくゆっくり息をする
+  function background(t){
+    vctx.globalCompositeOperation='source-over';
+    vctx.fillStyle='#080b10'; vctx.fillRect(0,0,w,h);
+    const cx=w*(0.40+0.10*Math.sin(t*0.019));
+    const cy=h*(0.30+0.06*Math.cos(t*0.016));
+    const g=vctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(w,h)*0.78);
+    g.addColorStop(0,'rgba(126,156,188,0.55)');
+    g.addColorStop(0.4,'rgba(72,96,126,0.26)');
+    g.addColorStop(1,'rgba(18,28,42,0)');
+    vctx.fillStyle=g; vctx.fillRect(0,0,w,h);
+    const gd=vctx.createLinearGradient(0,h*0.5,0,h);   // 下のほうは冷えて暗い
+    gd.addColorStop(0,'rgba(5,7,10,0)'); gd.addColorStop(1,'rgba(4,5,8,0.92)');
+    vctx.fillStyle=gd; vctx.fillRect(0,0,w,h);
+  }
+
+  // 曇りを、ほんの少しだけ拭う（destination-out）
+  function wipe(x,y,r,a){
+    fctx.globalCompositeOperation='destination-out';
+    const g=fctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(0,0,0,'+a+')');
+    g.addColorStop(0.6,'rgba(0,0,0,'+(a*0.65)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    fctx.fillStyle=g; fctx.beginPath(); fctx.arc(x,y,r,0,7); fctx.fill();
+  }
+  // すじは、時間をかけてまたくもる
+  function refog(dt){
+    fctx.globalCompositeOperation='source-over';
+    fctx.fillStyle='rgba('+FILM+','+Math.min(0.5,0.13*dt)+')';
+    fctx.fillRect(0,0,w,h);
+  }
+
+  function spawn(){
+    drops.push({ x:Math.random()*w, y:h*(0.04+Math.random()*0.22),
+      r:(3+Math.random()*3.5)*dpr, rmax:(7.5+Math.random()*4.5)*dpr,
+      vy:0, wob:Math.random()*6.28, run:false, pts:[] });
+  }
+
+  function updateDrop(d,dt){
+    if(!d.run){
+      d.r += 5.5*dpr*dt;                 // その場で、ゆっくり重くなる
+      if(d.r>=d.rmax) d.run=true;
+    } else {
+      d.vy = Math.min(d.vy + 34*dpr*dt, 66*dpr);   // 急がない落下
+      d.wob += dt*1.4;
+      d.y += d.vy*dt;
+      d.x += Math.sin(d.wob)*5*dpr*dt*8;           // 表面張力の、ためらいがちな横ゆれ
+      d.r += 1.2*dpr*dt;                            // 通り道の粒をすこし集める
+    }
+    d.pts.push({x:d.x,y:d.y}); if(d.pts.length>60) d.pts.shift();
+    wipe(d.x,d.y,d.r*1.35,0.82);         // 頭は、はっきり拭く
+  }
+
+  // しずくの、濡れたひかり
+  function drawDrop(d){
+    vctx.globalCompositeOperation='lighter';
+    if(d.pts.length>1){                  // 通ったあとの、かすかな濡れすじ
+      vctx.strokeStyle='rgba(150,180,208,0.05)';
+      vctx.lineWidth=Math.max(1,d.r*0.7); vctx.lineCap='round';
+      vctx.beginPath(); vctx.moveTo(d.pts[0].x,d.pts[0].y);
+      for(let i=1;i<d.pts.length;i++) vctx.lineTo(d.pts[i].x,d.pts[i].y);
+      vctx.stroke();
+    }
+    const hx=d.x-d.r*0.3, hy=d.y-d.r*0.35;
+    const g=vctx.createRadialGradient(hx,hy,0,d.x,d.y,d.r*1.25);
+    g.addColorStop(0,'rgba(206,226,243,0.5)');
+    g.addColorStop(0.5,'rgba(146,176,205,0.12)');
+    g.addColorStop(1,'rgba(146,176,205,0)');
+    vctx.fillStyle=g; vctx.beginPath(); vctx.arc(d.x,d.y,d.r*1.25,0,7); vctx.fill();
+    vctx.fillStyle='rgba(238,246,255,0.75)';
+    vctx.beginPath(); vctx.arc(hx,hy,Math.max(1,d.r*0.2),0,7); vctx.fill();
+    vctx.globalCompositeOperation='source-over';
+  }
+
+  function drawBeads(t){
+    vctx.globalCompositeOperation='lighter';
+    for(const b of beads){
+      const a=0.05+0.045*Math.sin(t*b.tw+b.ph);
+      const g=vctx.createRadialGradient(b.x-b.r*0.3,b.y-b.r*0.3,0,b.x,b.y,b.r*1.6);
+      g.addColorStop(0,'rgba(198,220,240,'+(a+0.06)+')');
+      g.addColorStop(1,'rgba(198,220,240,0)');
+      vctx.fillStyle=g; vctx.beginPath(); vctx.arc(b.x,b.y,b.r*1.6,0,7); vctx.fill();
+    }
+    vctx.globalCompositeOperation='source-over';
+  }
+
+  let last=performance.now(), start=last, spawnAcc=2.5;
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+    background(t);
+    refog(dt);
+    for(const b of beads) wipe(b.x,b.y,b.r*2.1,0.2);   // 粒は、ほのかに透ける
+    spawnAcc-=dt;
+    if(spawnAcc<=0 && drops.length<3){ spawnAcc=3.5+Math.random()*5.5; spawn(); }
+    for(let i=drops.length-1;i>=0;i--){
+      const d=drops[i]; updateDrop(d,dt);
+      if(d.y-d.r>h){ drops.splice(i,1); }
+    }
+    vctx.drawImage(fog,0,0);
+    drawBeads(t);
+    for(const d of drops) drawDrop(d);
+    if(!reduce) requestAnimationFrame(loop);
+  }
+
+  addEventListener('resize',()=>{ resize(); });
+  resize();
+
+  if(reduce){
+    // 動きを止める設定なら、一筋の流れた跡を、静かに一枚だけ置く
+    background(40);
+    for(const b of beads) wipe(b.x,b.y,b.r*2.1,0.3);
+    const dx=w*0.62;
+    const d={x:dx,y:h*0.66,r:9*dpr,pts:[]};
+    for(let i=0;i<=48;i++){
+      const yy=h*0.06+(h*0.60)*(i/48);
+      const xx=dx+Math.sin(i*0.35)*7*dpr;
+      wipe(xx,yy, (4+i*0.11)*dpr, 0.7);
+      d.pts.push({x:xx,y:yy});
+    }
+    d.x=d.pts[d.pts.length-1].x; d.y=d.pts[d.pts.length-1].y;
+    vctx.drawImage(fog,0,0);
+    drawBeads(4);
+    drawDrop(d);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
