@@ -19,6 +19,7 @@
 | 06 | [昼のシーツ](works/06-hiru-no-shiitsu.html) | 乾くまで、急がなくていい。 |
 | 07 | [夕暮れ](works/07-yugure.html) | 夜は、いつもそっと来る。 |
 | 08 | [窓の結露](works/08-mado-no-ketsuro.html) | 急がなくても、ちゃんとたどりつく。 |
+| 09 | [水鏡](works/09-mizukagami.html) | 乱れても、いつか、また静かに。 |
 
 入口は [`index.html`](index.html)。
 

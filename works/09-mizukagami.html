@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>水鏡  — 間（ま）</title>
+<meta name="description" content="間（ま）第九作『水鏡』。乱れても、いつか、また静かに。" />
+<style>
+  :root { --bg:#060810; --ink:#dbe4ee; --ink-dim:#5f6678; --cool:#cde0f2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.2s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.4s;}
+  .poem p:nth-of-type(2){animation-delay:3.6s;}
+  .poem p:nth-of-type(3){animation-delay:5.8s;}
+  .poem p:nth-of-type(4){animation-delay:8.0s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--cool); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="水鏡">
+    <div class="title">第九作　水鏡</div>
+    <p>月が、しずかに水にうつっている。</p>
+    <p>どこかで、しずくがひとつ、落ちた。</p>
+    <p>輪は、ゆっくり広がって、消えて、</p>
+    <p>水面は、また、月をうつす。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="08-mado-no-ketsuro.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 水鏡 — 夜の、暗く静かな水の面。
+ * 月あかりが、ぼんやりと水にうつっている。
+ * ときどき、どこかで、しずくがひとつだけ落ちる。
+ * そこから輪が、ごくゆっくり広がって、月の光を横切り、やがて消える。
+ * 大切なのは、しずくとしずくのあいだの、長い静けさ——それも間（ま）。
+ * どんなに乱れても、水面はまた、月をうつして凪いでいく。急がない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr, ripples=[], moon={x:0,y:0,r:0};
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    moon.x=w*0.62; moon.y=h*0.34; moon.r=Math.min(w,h)*0.30;
+  }
+  resize(); addEventListener('resize',resize);
+
+  // 夜の水 — 冷たく深い下地と、水にうつる月のにじみ
+  function water(t){
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='#050710'; ctx.fillRect(0,0,w,h);
+    // ほんのり明るい、遠い夜空の余韻
+    const sky=ctx.createLinearGradient(0,0,0,h);
+    sky.addColorStop(0,'rgba(24,34,52,0.55)');
+    sky.addColorStop(0.55,'rgba(10,15,26,0.2)');
+    sky.addColorStop(1,'rgba(4,6,12,0)');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
+    // 水にうつる月 — 呼吸するようにゆっくり明滅
+    const br=0.5+0.06*Math.sin(t*0.09);
+    const mx=moon.x+Math.sin(t*0.05)*6*dpr;
+    const my=moon.y+Math.cos(t*0.04)*5*dpr;
+    const g=ctx.createRadialGradient(mx,my,0,mx,my,moon.r);
+    g.addColorStop(0,'rgba(205,224,242,'+(0.30*br)+')');
+    g.addColorStop(0.35,'rgba(150,178,210,'+(0.12*br)+')');
+    g.addColorStop(1,'rgba(120,150,190,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(mx,my,moon.r,0,7); ctx.fill();
+    return {mx,my};
+  }
+
+  function spawn(x,y){
+    ripples.push({ x, y, age:0,
+      max:10+Math.random()*4,                     // 秒。ごくゆっくり生きて消える
+      speed:(Math.max(w,h)*0.55)/12,              // 広がる速さ（毎秒px）
+      flash:0.55 });                               // 落ちた瞬間の、小さなきらめき
+  }
+
+  // 一枚のさざ波 — やわらかい光の輪
+  function drawRipple(r, moonPos){
+    const k=r.age/r.max;                            // 0→1
+    if(k>=1) return;
+    const rad=r.age*r.speed;
+    // 生まれてすぐ現れ、あとはゆっくり薄れる
+    let a = k<0.05 ? k/0.05 : (1-k)/0.95;
+    // 月あかりの近くでは、波がしを少しだけ強くとらえる
+    const d=Math.hypot(r.x-moonPos.mx, r.y-moonPos.my);
+    const near=Math.max(0, 1-d/(moon.r*1.3));
+    a *= (0.09 + 0.14*near);
+    if(a<=0.002) return;
+    const band=(6+ k*22)*dpr;                       // 広がるほど、輪はやわらかくなる
+    const g=ctx.createRadialGradient(r.x,r.y,Math.max(0,rad-band),r.x,r.y,rad+band);
+    g.addColorStop(0,'rgba(190,214,240,0)');
+    g.addColorStop(0.5,'rgba(198,220,244,'+a+')');
+    g.addColorStop(1,'rgba(190,214,240,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(r.x,r.y,rad+band,0,7); ctx.fill();
+  }
+
+  function drawFlash(r){
+    if(r.flash<=0) return;
+    const a=r.flash*0.5;
+    const g=ctx.createRadialGradient(r.x,r.y,0,r.x,r.y,10*dpr);
+    g.addColorStop(0,'rgba(224,238,255,'+a+')');
+    g.addColorStop(1,'rgba(224,238,255,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(r.x,r.y,10*dpr,0,7); ctx.fill();
+  }
+
+  // 次のしずくまでの、長い静けさ
+  function nextGap(){ return 3.8+Math.random()*5.2; }
+
+  let last=performance.now(), start=last, wait=nextGap();
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+    const moonPos=water(t);
+
+    wait-=dt;
+    if(wait<=0){
+      wait=nextGap();
+      // 月のあたりに落ちやすく、たまに遠くへ
+      const near=Math.random()<0.6;
+      const x = near ? moonPos.mx+(Math.random()-0.5)*moon.r*1.1 : Math.random()*w;
+      const y = near ? moonPos.my+(Math.random()-0.5)*moon.r*1.1 : Math.random()*h;
+      spawn(x,y);
+    }
+
+    ctx.globalCompositeOperation='lighter';
+    for(let i=ripples.length-1;i>=0;i--){
+      const r=ripples[i];
+      r.age+=dt; r.flash=Math.max(0, r.flash-dt*1.6);
+      drawRipple(r, moonPos);
+      drawFlash(r);
+      if(r.age>=r.max) ripples.splice(i,1);
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    if(!reduce) requestAnimationFrame(loop);
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、月と、広がりかけた輪をひとつ、静かに置く
+    const moonPos=water(0);
+    ctx.globalCompositeOperation='lighter';
+    const r1={x:moonPos.mx, y:moonPos.my, age:5.5, max:12, speed:(Math.max(w,h)*0.55)/12, flash:0};
+    const r2={x:moonPos.mx, y:moonPos.my, age:2.5, max:12, speed:(Math.max(w,h)*0.55)/12, flash:0};
+    drawRipple(r1,moonPos); drawRipple(r2,moonPos);
+    ctx.globalCompositeOperation='source-over';
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
