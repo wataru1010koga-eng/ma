@@ -20,6 +20,7 @@
 | 07 | [夕暮れ](works/07-yugure.html) | 夜は、いつもそっと来る。 |
 | 08 | [窓の結露](works/08-mado-no-ketsuro.html) | 急がなくても、ちゃんとたどりつく。 |
 | 09 | [水鏡](works/09-mizukagami.html) | 乱れても、いつか、また静かに。 |
+| 10 | [蛍](works/10-hotaru.html) | 光らない時間も、あなたのもの。 |
 
 入口は [`index.html`](index.html)。
 
