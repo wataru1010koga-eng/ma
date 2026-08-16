@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>風鈴  — 間（ま）</title>
+<meta name="description" content="間（ま）第十二作『風鈴』。鳴らない時間も、ちゃんと、そこにいる。" />
+<style>
+  :root { --bg:#0f0b08; --ink:#ece2d2; --ink-dim:#726556; --warm:#ffd9a3; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.25rem,3.4vw,2.1rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.2s ease forwards;
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.2s;}
+  .poem p:nth-of-type(3){animation-delay:5.2s;}
+  .poem p:nth-of-type(4){animation-delay:7.2s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="風鈴">
+    <div class="title">第十二作　風鈴</div>
+    <p>軒に、ひとつ。</p>
+    <p>風が来れば鳴って、来なければ、ただ揺れて。</p>
+    <p>鳴らない時間のほうが、ずっと長い。</p>
+    <p>それでも、ちゃんと、待っている。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="11-tsukiakari.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 風鈴 — 夏の夕、軒下にひとつ。
+ * ガラスの鈴と、その下の短冊が、かすかな風にゆっくり揺れている。
+ * 風がふっと来たときだけ、そっと鳴る。音は、あたたかい輪になって、ひろがって、消える。
+ * 鳴らない時間のほうが、ずっと長い。それでも、ちゃんと、そこで待っている。急がない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr;
+  let gust=0;                 // 風のつよさ（0付近。ときどきふっと立って、やがて凪ぐ）
+  let gustPrev=0;             // 直前の風。立ち上がりを見張るため。
+  let rings=[];               // 音の輪
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+  }
+  resize(); addEventListener('resize',resize);
+
+  // 吊り元（画面の右上より）。文字は左にあるので、風鈴は右に。
+  function pivot(){ return { x:innerWidth*0.70, y:innerHeight*0.12 }; }
+
+  // ゆれの角度（ラジアン）。ごく浅い、ふたつの遅い呼吸に、風のぶんを足す。
+  function angle(t){
+    return 0.045*Math.sin(t*0.55)
+         + 0.028*Math.sin(t*0.34+2.0)
+         + gust*Math.sin(t*1.35);
+  }
+
+  // 夏の夕の下地 — あたたかく暗い。上のほうに、ほのかな残照。
+  function backdrop(){
+    ctx.globalCompositeOperation='source-over';
+    const g=ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#140f0a');
+    g.addColorStop(0.55,'#0f0b08');
+    g.addColorStop(1,'#0b0806');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    const p=pivot();
+    const glow=ctx.createRadialGradient(p.x*dpr,-h*0.1,0,p.x*dpr,-h*0.1,h*0.9);
+    glow.addColorStop(0,'rgba(255,196,132,0.10)');
+    glow.addColorStop(0.5,'rgba(255,170,110,0.03)');
+    glow.addColorStop(1,'rgba(255,170,110,0)');
+    ctx.fillStyle=glow; ctx.fillRect(0,0,w,h);
+  }
+
+  // 音の輪 — 鈴の位置から、あたたかい輪がゆっくりひろがって、薄れて消える。
+  function ring(bx,by){
+    rings.push({ x:bx, y:by, life:0, max:4.2, r0:18 });
+  }
+  function drawRings(dt){
+    ctx.globalCompositeOperation='lighter';
+    for(let i=rings.length-1;i>=0;i--){
+      const s=rings[i];
+      s.life+=dt;
+      const k=s.life/s.max;                     // 0→1
+      if(k>=1){ rings.splice(i,1); continue; }
+      const r=(s.r0+k*150)*dpr;                 // ゆっくりひろがる
+      const a=Math.sin(Math.min(k,1)*Math.PI)*0.22*(1-k*0.4);
+      ctx.strokeStyle='rgba(255,214,164,'+a+')';
+      ctx.lineWidth=Math.max(1,1.4*dpr*(1-k));
+      ctx.beginPath(); ctx.arc(s.x,s.y,r,0,7); ctx.stroke();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  // 風鈴を一体、いまの角度で描く。
+  function drawChime(t){
+    const p=pivot();
+    const Px=p.x*dpr, Py=p.y*dpr;
+    const L1=innerHeight*0.17*dpr;              // 糸〜鈴
+    const R =Math.max(16, innerHeight*0.028)*dpr; // 鈴の半径
+    const th=angle(t);
+    const th2=angle(t-0.55)*1.25;              // 短冊は少し遅れて、大きく揺れる
+    const Bx=Px+Math.sin(th)*L1;
+    const By=Py+Math.cos(th)*L1;
+
+    // 吊り糸
+    ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle='rgba(150,140,124,0.5)';
+    ctx.lineWidth=Math.max(1,1*dpr);
+    ctx.beginPath(); ctx.moveTo(Px,Py); ctx.lineTo(Bx,By); ctx.stroke();
+
+    // 鈴のまわりの、ほのかなあかり
+    const halo=ctx.createRadialGradient(Bx,By,0,Bx,By,R*4.2);
+    halo.addColorStop(0,'rgba(255,220,170,0.16)');
+    halo.addColorStop(0.5,'rgba(255,200,150,0.04)');
+    halo.addColorStop(1,'rgba(255,200,150,0)');
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle=halo; ctx.beginPath(); ctx.arc(Bx,By,R*4.2,0,7); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+
+    // ガラスの鈴 — 澄んだ器に、あたたかい照り返し。下は少しひらいている。
+    ctx.beginPath(); ctx.arc(Bx,By,R,Math.PI*0.12,Math.PI*0.88,false);
+    ctx.arc(Bx,By,R,Math.PI*0.88,Math.PI*0.12,true);
+    const gl=ctx.createRadialGradient(Bx-R*0.3,By-R*0.35,0,Bx,By,R);
+    gl.addColorStop(0,'rgba(255,238,214,0.30)');
+    gl.addColorStop(0.55,'rgba(205,220,228,0.12)');
+    gl.addColorStop(1,'rgba(180,198,210,0.05)');
+    ctx.fillStyle=gl; ctx.fill();
+    // 器のふち
+    ctx.strokeStyle='rgba(238,244,248,0.42)';
+    ctx.lineWidth=Math.max(1,1.2*dpr);
+    ctx.beginPath(); ctx.arc(Bx,By,R,0,7); ctx.stroke();
+    // 小さな照りひとすじ
+    ctx.strokeStyle='rgba(255,245,225,0.5)';
+    ctx.lineWidth=Math.max(1,1.4*dpr);
+    ctx.beginPath(); ctx.arc(Bx,By,R*0.78,Math.PI*1.05,Math.PI*1.35); ctx.stroke();
+
+    // 舌（ぜつ）— 鈴のなかの小さな玉。糸で短冊につながる。
+    const cx=Bx+Math.sin(th2)*R*0.5;
+    const cy=By+R*0.65+Math.cos(th2)*R*0.2;
+    ctx.fillStyle='rgba(230,214,186,0.75)';
+    ctx.beginPath(); ctx.arc(cx,cy,Math.max(2,R*0.14),0,7); ctx.fill();
+
+    // 短冊 — あたたかい紙が、風にひらりと揺れる。
+    const Tx=Bx+Math.sin(th2)*R*0.5;
+    const Ty=By+R*0.7;
+    const Wt=Math.max(9, innerHeight*0.018)*dpr;
+    const Lt=innerHeight*0.13*dpr;
+    ctx.save();
+    ctx.translate(Tx,Ty);
+    ctx.rotate(th2);
+    // 紙のたわみを、わずかな左右のうねりで
+    const flutter=Math.sin(t*1.1+th2*3)*Wt*0.35;
+    const grad=ctx.createLinearGradient(0,0,0,Lt);
+    grad.addColorStop(0,'rgba(244,228,196,0.92)');
+    grad.addColorStop(1,'rgba(226,196,150,0.85)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(-Wt/2,0);
+    ctx.lineTo(Wt/2,0);
+    ctx.quadraticCurveTo(Wt/2+flutter, Lt*0.55, Wt/2+flutter*0.4, Lt);
+    ctx.lineTo(-Wt/2+flutter*0.4, Lt);
+    ctx.quadraticCurveTo(-Wt/2+flutter, Lt*0.55, -Wt/2, 0);
+    ctx.closePath();
+    ctx.fill();
+    // 紙の縁の、ほのかな影
+    ctx.strokeStyle='rgba(150,110,70,0.25)';
+    ctx.lineWidth=Math.max(1,1*dpr);
+    ctx.stroke();
+    ctx.restore();
+
+    return { bx:Bx, by:By };
+  }
+
+  let last=performance.now();
+  const start=performance.now();
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+
+    // 風。ときどき、ふっと立って、やがて凪いでいく。
+    gust*=Math.pow(0.5, dt/2.4);                 // ゆっくり凪ぐ
+    if(Math.random() < dt*0.16){                 // まれに、風が来る
+      gust += 0.02 + Math.random()*0.05;
+    }
+    // 風がふっと立ち上がった瞬間だけ、鈴がそっと鳴る。音の輪をひとつ、ときにふたつ。
+    if(gust-gustPrev > 0.02){
+      const b=peekBell(t);
+      ring(b.bx,b.by);
+      if(Math.random()<0.5) ring(b.bx,b.by);
+    }
+    gustPrev=gust;
+
+    backdrop();
+    drawRings(dt);
+    drawChime(t);
+
+    if(!reduce) requestAnimationFrame(loop);
+  }
+
+  // 鈴のいまの位置だけを、描かずに求める（音を鳴らす位置決めに使う）
+  function peekBell(t){
+    const p=pivot();
+    const Px=p.x*dpr, Py=p.y*dpr;
+    const L1=innerHeight*0.17*dpr;
+    const th=angle(t);
+    return { bx:Px+Math.sin(th)*L1, by:Py+Math.cos(th)*L1 };
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、夕の軒下に、風鈴がひとつ静かに下がった一瞬を置く。
+    backdrop();
+    const info=drawChime(0.6);                    // ほんのわずかに傾いた姿
+    ring(info.bx,info.by); rings[0].life=1.6;      // 消えかけの音の輪をひとつ
+    drawRings(0);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
