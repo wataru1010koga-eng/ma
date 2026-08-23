@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>信号待ち  — 間（ま）</title>
+<meta name="description" content="間（ま）第十三作『信号待ち』。待っているあいだの空も、あなたのもの。" />
+<style>
+  :root { --bg:#0a0d13; --ink:#e6e2da; --ink-dim:#6b6f78; --cool:#aebfd2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.2s ease forwards;
+    text-shadow:0 1px 20px rgba(6,8,12,0.55);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.2s;}
+  .poem p:nth-of-type(3){animation-delay:5.2s;}
+  .poem p:nth-of-type(4){animation-delay:7.2s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--cool); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="信号待ち">
+    <div class="title">第十三作　信号待ち</div>
+    <p>赤がかわるまでの、ほんの少し。</p>
+    <p>ふと見あげると、電線が空を、いくつかに分けていた。</p>
+    <p>どこへも急がない雲が、その上を、ゆっくり渡っていく。</p>
+    <p>青になっても、いまの静けさは、ちゃんとあった。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="12-fuurin.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 信号待ち — 交差点で、赤がかわるのを待つあいだ。
+ * ふと見あげた空を、何本かの電線が、ゆっくり分けている。
+ * 雲は、どこへも急がず、その上を渡っていく。線の上には、小鳥がひとつ。
+ * ほとんど動かない。ただ、待っている。急がない。この一分も、ちゃんとあった。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr;
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+  }
+  resize(); addEventListener('resize',resize);
+
+  // 電線たち。右のほう（電柱）から扇のようにひろがり、左へ渡っていく。
+  // 各線は、右端・左端・たわみ量・そして遅い呼吸の位相をもつ。
+  const wires=[
+    { ry:0.30, ly:0.40, sag:0.030, ph:0.0 },
+    { ry:0.335, ly:0.475, sag:0.038, ph:1.1 },
+    { ry:0.37, ly:0.555, sag:0.045, ph:2.2 },
+    { ry:0.405, ly:0.635, sag:0.052, ph:0.6 },
+    { ry:0.45, ly:0.735, sag:0.060, ph:1.7 }
+  ];
+  // 右の電柱（画面のやや外）と、線が集まるあたり
+  function anchorX(){ return w*0.94; }
+
+  // 雲 — ほのかな横長の光。ゆっくり右へ流れ、端で反対から戻る。
+  let clouds=[];
+  function seedClouds(){
+    clouds=[
+      { x:0.20, y:0.30, r:0.34, sp:0.0090, a:0.09 },
+      { x:0.62, y:0.24, r:0.42, sp:0.0062, a:0.07 },
+      { x:0.85, y:0.44, r:0.30, sp:0.0110, a:0.10 },
+      { x:0.42, y:0.52, r:0.50, sp:0.0048, a:0.06 }
+    ];
+  }
+  seedClouds();
+
+  // 二次ベジェの点（右アンカー A → 制御点 C → 左端 B）
+  function wirePoint(wr,p,t){
+    const Ax=anchorX(),          Ay=h*wr.ry + sway(wr,t);
+    const Bx=-w*0.03,            By=h*wr.ly + sway(wr,t)*0.7;
+    const Cx=(Ax+Bx)*0.5,        Cy=(Ay+By)*0.5 + h*wr.sag;   // 下へたわむ
+    const u=1-p;
+    return {
+      x:u*u*Ax + 2*u*p*Cx + p*p*Bx,
+      y:u*u*Ay + 2*u*p*Cy + p*p*By
+    };
+  }
+  // ごく浅い、遅い呼吸のゆれ。風はほとんどない。
+  function sway(wr,t){ return Math.sin(t*0.18+wr.ph)*h*0.006 + Math.sin(t*0.11+wr.ph*1.7)*h*0.004; }
+
+  // 空 — 上は深い藍、下のほうに、冷たく澄んだ薄あかり。
+  function sky(){
+    ctx.globalCompositeOperation='source-over';
+    const g=ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#080b11');
+    g.addColorStop(0.45,'#0d1219');
+    g.addColorStop(0.72,'#182130');
+    g.addColorStop(1,'#232f40');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    // 地平ちかくの、冷たい残光
+    const glow=ctx.createLinearGradient(0,h*0.55,0,h);
+    glow.addColorStop(0,'rgba(174,191,210,0)');
+    glow.addColorStop(1,'rgba(174,191,210,0.10)');
+    ctx.fillStyle=glow; ctx.fillRect(0,h*0.55,w,h*0.45);
+  }
+
+  function drawClouds(dt,t){
+    ctx.globalCompositeOperation='lighter';
+    for(const c of clouds){
+      if(!reduce){ c.x+=c.sp*dt; if(c.x>1.35) c.x-=1.7; }
+      const cx=c.x*w, cy=c.y*h, rx=c.r*w, ryr=c.r*h*0.34;
+      ctx.save();
+      ctx.translate(cx,cy); ctx.scale(1,ryr/rx);
+      const g=ctx.createRadialGradient(0,0,0,0,0,rx);
+      g.addColorStop(0,'rgba(198,210,226,'+c.a+')');
+      g.addColorStop(1,'rgba(198,210,226,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,rx,0,7); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  function drawWires(t){
+    ctx.globalCompositeOperation='source-over';
+    // 電柱 — 右のふち、ほのかな影。
+    const px=anchorX();
+    ctx.strokeStyle='rgba(8,11,16,0.85)';
+    ctx.lineWidth=Math.max(2,4*dpr);
+    ctx.beginPath(); ctx.moveTo(px,h*0.20); ctx.lineTo(px,h*0.86); ctx.stroke();
+    // 腕木
+    ctx.lineWidth=Math.max(1,2.4*dpr);
+    ctx.beginPath(); ctx.moveTo(px-w*0.045,h*0.335); ctx.lineTo(px+w*0.02,h*0.335); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px-w*0.045,h*0.40); ctx.lineTo(px+w*0.02,h*0.40); ctx.stroke();
+
+    // 線 — 一本ずつ、たわみをたどって。
+    for(const wr of wires){
+      ctx.beginPath();
+      for(let i=0;i<=48;i++){
+        const p=i/48, pt=wirePoint(wr,p,t);
+        if(i===0) ctx.moveTo(pt.x,pt.y); else ctx.lineTo(pt.x,pt.y);
+      }
+      ctx.strokeStyle='rgba(6,9,13,0.92)';
+      ctx.lineWidth=Math.max(1,1.3*dpr);
+      ctx.stroke();
+    }
+  }
+
+  // 小鳥 — いちばん上の線に、ひとつ。ほとんど動かない。ときどき、そっと羽づくろい。
+  let preen=0, preenTimer=0;
+  function drawBird(dt,t){
+    const wr=wires[0], p=0.60;
+    const pt=wirePoint(wr,p,t);
+    // まれに、ほんの少し身じろぎ
+    if(!reduce){
+      preenTimer-=dt;
+      if(preenTimer<=0){ preenTimer=6+Math.random()*10; preen=1; }
+      preen*=Math.pow(0.5,dt/0.5);
+    }
+    const bob=Math.sin(t*0.5)*1.2*dpr + preen*Math.sin(t*22)*2*dpr;
+    const bx=pt.x, by=pt.y-6*dpr+bob;
+    const s=Math.max(4,5.5*dpr);
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='rgba(9,12,17,0.95)';
+    // まるい胴
+    ctx.beginPath(); ctx.ellipse(bx,by,s*1.15,s*0.9,-0.15,0,7); ctx.fill();
+    // 頭
+    ctx.beginPath(); ctx.arc(bx-s*0.9,by-s*0.6,s*0.6,0,7); ctx.fill();
+    // 尾（すっと下がる）
+    ctx.beginPath();
+    ctx.moveTo(bx+s*0.9,by-s*0.2);
+    ctx.lineTo(bx+s*2.3,by+s*0.5+preen*1.5*dpr);
+    ctx.lineTo(bx+s*0.9,by+s*0.5);
+    ctx.closePath(); ctx.fill();
+    // 脚 — 線につかまる、細い二本
+    ctx.strokeStyle='rgba(9,12,17,0.9)';
+    ctx.lineWidth=Math.max(1,1*dpr);
+    ctx.beginPath();
+    ctx.moveTo(bx-s*0.2,by+s*0.85); ctx.lineTo(bx-s*0.2,pt.y);
+    ctx.moveTo(bx+s*0.25,by+s*0.85); ctx.lineTo(bx+s*0.25,pt.y);
+    ctx.stroke();
+  }
+
+  let last=performance.now(), start=performance.now();
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;   // 秒
+    const t=(now-start)/1000;
+    sky();
+    drawClouds(dt,t);
+    drawWires(t);
+    drawBird(dt,t);
+    if(!reduce) requestAnimationFrame(loop);
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、待っているひとときの空を、一枚だけ静かに置く。
+    sky(); drawClouds(0,0.6); drawWires(0.6); drawBird(0,0.6);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
