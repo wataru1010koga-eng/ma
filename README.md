@@ -24,6 +24,7 @@
 | 11 | [月あかり](works/11-tsukiakari.html) | 見えない間も、ちゃんとそこにいる。 |
 | 12 | [風鈴](works/12-fuurin.html) | 鳴らない時間も、ちゃんと、そこにいる。 |
 | 13 | [信号待ち](works/13-shingou-machi.html) | 待っているあいだの空も、あなたのもの。 |
+| 14 | [木漏れ日](works/14-komorebi.html) | 揺れていても、光は、ちゃんと届く。 |
 
 入口は [`index.html`](index.html)。
 
