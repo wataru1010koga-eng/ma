@@ -26,6 +26,7 @@
 | 13 | [信号待ち](works/13-shingou-machi.html) | 待っているあいだの空も、あなたのもの。 |
 | 14 | [木漏れ日](works/14-komorebi.html) | 揺れていても、光は、ちゃんと届く。 |
 | 15 | [ろうそく](works/15-rousoku.html) | 消えそうでも、まだ、ともっている。 |
+| 16 | [すすき](works/16-susuki.html) | 揺れても、折れはしない。 |
 
 入口は [`index.html`](index.html)。
 
