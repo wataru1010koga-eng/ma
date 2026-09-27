@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>星ぞら  — 間（ま）</title>
+<meta name="description" content="間（ま）第十八作『星ぞら』。遅れても、その光が消えることはない。" />
+<style>
+  :root { --bg:#05070d; --ink:#dfe6f2; --ink-dim:#5b6474; --warm:#c3d4ff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.4s ease forwards;
+    text-shadow:0 1px 30px rgba(2,4,10,0.9);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.4s;}
+  .poem p:nth-of-type(3){animation-delay:5.6s;}
+  .poem p:nth-of-type(4){animation-delay:7.8s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="星ぞら">
+    <div class="title">第十八作　星ぞら</div>
+    <p>この光が旅立ったのは、ずっと昔のこと。</p>
+    <p>遅れても、消えずに、ここまで来た。</p>
+    <p>だから、そんなに急がなくていい。</p>
+    <p>あなたの光も、きっと、どこかへ届く。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="17-ochiba.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 星ぞら — 澄んだ秋の夜空。
+ * 星は、誰も見ていなくても、ずっとまたたいている。
+ * 空全体が、ごくゆっくりと（何分もかけて）回り、時間の流れをそっと示す。
+ * ときどき、長い沈黙のあとに、ひとつだけ流れ星が横切る——待つ時間も、作品のうち。
+ * いま届いた光は、ずっと昔に旅立ったもの。遅れても、消えずに、ここまで来た。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,S,stars=[],px,py;
+
+  function rand(a,b){ return a+Math.random()*(b-a); }
+
+  // 星の色。冷たく澄んだ白を基調に、ごくまれに淡い青、ごくまれに淡い金を一さじ。
+  function starColor(){
+    const r=Math.random();
+    if(r<0.14) return [200,214,255];       // 淡い青白
+    if(r<0.20) return [255,236,206];        // 淡い金（暖色の一さじ）
+    return [236,242,255];                   // 澄んだ白
+  }
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    S=Math.min(w,h);
+    // 回転の中心（天の極のように）を画面の左下の外に置く。
+    px=w*-0.15; py=h*1.2;
+    build();
+  }
+
+  // 星をつくる。回転で欠けないよう、画面より広い範囲に散らす。
+  function makeStar(){
+    return {
+      x:rand(-0.35,1.35)*w,
+      y:rand(-0.35,1.35)*h,
+      r:(0.5+Math.pow(Math.random(),2.4)*2.2)*dpr,   // ほとんど小さく、まれに大きい
+      col:starColor(),
+      base:rand(0.35,0.95),                            // もともとの明るさ
+      tw:rand(0.15,0.7),                               // またたきの速さ（遅い）
+      phase:rand(0,Math.PI*2)
+    };
+  }
+
+  function build(){
+    const n=Math.round(150 + (w*h)/(9000*dpr*dpr));    // 画面に応じてほどよく
+    stars=[];
+    for(let i=0;i<n;i++) stars.push(makeStar());
+  }
+
+  function backdrop(){
+    // 上は深く、地平近くはほんのわずかに明るむ、澄んだ夜。
+    const sky=ctx.createLinearGradient(0,0,0,h);
+    sky.addColorStop(0,'#04050b');
+    sky.addColorStop(0.6,'#05070e');
+    sky.addColorStop(1,'#080c16');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
+    // 天の川のように、ごく淡い光の帯を斜めに一本。
+    ctx.save();
+    ctx.translate(w*0.5,h*0.5); ctx.rotate(-0.6);
+    const mw=ctx.createLinearGradient(0,-S*0.5,0,S*0.5);
+    mw.addColorStop(0,'rgba(150,170,220,0)');
+    mw.addColorStop(0.5,'rgba(150,170,220,0.05)');
+    mw.addColorStop(1,'rgba(150,170,220,0)');
+    ctx.fillStyle=mw; ctx.fillRect(-w,-S*0.32,w*2,S*0.64);
+    ctx.restore();
+    // 地平線ぎわの、ほのかに冷たい光。
+    const glow=ctx.createRadialGradient(w*0.5,h*1.08,0,w*0.5,h*1.08,S*1.0);
+    glow.addColorStop(0,'rgba(90,120,180,0.06)');
+    glow.addColorStop(1,'rgba(90,120,180,0)');
+    ctx.fillStyle=glow; ctx.fillRect(0,0,w,h);
+  }
+
+  function drawStar(s,t){
+    const tw=0.6+0.4*Math.sin(t*s.tw+s.phase);        // またたき
+    const a=Math.min(1,s.base*tw);
+    const c=s.col;
+    // 明るい星には、小さなにじみ。
+    if(s.r>1.7*dpr){
+      const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*5);
+      g.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},${a*0.5})`);
+      g.addColorStop(1,`rgba(${c[0]},${c[1]},${c[2]},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(s.x,s.y,s.r*5,0,7); ctx.fill();
+    }
+    ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
+  }
+
+  // 流れ星。長い沈黙のあと、ひとつだけ、すっと横切る。暖色の一さじ。
+  let shoot=null, nextShoot=reduce?1e9:rand(6,14);
+  function spawnShoot(){
+    const fromLeft=Math.random()<0.5;
+    const sx=fromLeft ? rand(0.0,0.4)*w : rand(0.6,1.0)*w;
+    const sy=rand(0.05,0.4)*h;
+    const dir=fromLeft ? rand(0.5,0.9) : Math.PI-rand(0.5,0.9); // 斜め下へ
+    const len=rand(0.5,0.85)*S;
+    shoot={
+      x:sx, y:sy,
+      vx:Math.cos(dir)*len, vy:Math.sin(dir)*len*0.6+len*0.25,
+      life:0, dur:rand(0.8,1.3)
+    };
+  }
+  function drawShoot(dt){
+    if(!shoot) return;
+    shoot.life+=dt;
+    const k=shoot.life/shoot.dur;
+    if(k>=1){ shoot=null; return; }
+    const ease=Math.sin(Math.min(k,1)*Math.PI);        // 現れて、消える
+    const cx=shoot.x+shoot.vx*k, cy=shoot.y+shoot.vy*k;
+    const tailLen=0.10;                                  // 尾の長さ（時間で）
+    const tk=Math.max(0,k-tailLen);
+    const tx=shoot.x+shoot.vx*tk, ty=shoot.y+shoot.vy*tk;
+    const g=ctx.createLinearGradient(tx,ty,cx,cy);
+    g.addColorStop(0,'rgba(255,228,180,0)');
+    g.addColorStop(1,`rgba(255,235,200,${0.9*ease})`);
+    ctx.strokeStyle=g; ctx.lineWidth=1.6*dpr; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(cx,cy); ctx.stroke();
+    // 先端の小さな光
+    const hg=ctx.createRadialGradient(cx,cy,0,cx,cy,6*dpr);
+    hg.addColorStop(0,`rgba(255,240,210,${0.9*ease})`);
+    hg.addColorStop(1,'rgba(255,240,210,0)');
+    ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(cx,cy,6*dpr,0,7); ctx.fill();
+  }
+
+  function frame(t){
+    backdrop();
+    // 空全体を、ごくゆっくり回す（何分もかけて一周するほど遅い）。
+    const rot=t*0.0016;
+    ctx.save();
+    ctx.translate(px,py); ctx.rotate(rot); ctx.translate(-px,-py);
+    ctx.globalCompositeOperation='lighter';
+    for(const s of stars) drawStar(s,t);
+    ctx.globalCompositeOperation='source-over';
+    ctx.restore();
+  }
+
+  let last=performance.now(), start=performance.now();
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+    frame(t);
+    // 流れ星のタイミング
+    nextShoot-=dt;
+    if(!shoot && nextShoot<=0){ spawnShoot(); nextShoot=rand(14,32); }
+    ctx.globalCompositeOperation='lighter';
+    drawShoot(dt);
+    ctx.globalCompositeOperation='source-over';
+    requestAnimationFrame(loop);
+  }
+
+  resize(); addEventListener('resize',resize);
+  if(reduce){
+    // 動きを止める設定なら、またたきのない静かな星空を一枚だけ置く。
+    frame(0);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
