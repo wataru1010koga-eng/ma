@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>波打ちぎわ  — 間（ま）</title>
+<meta name="description" content="間（ま）第十九作『波打ちぎわ』。いちばん長いのは、波と波の、あいだ。" />
+<style>
+  :root { --bg:#09090e; --ink:#ece4d8; --ink-dim:#6d6459; --warm:#ffdcae; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.4s ease forwards;
+    text-shadow:0 1px 26px rgba(6,6,12,0.85);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.4s;}
+  .poem p:nth-of-type(3){animation-delay:5.6s;}
+  .poem p:nth-of-type(4){animation-delay:7.8s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="波打ちぎわ">
+    <div class="title">第十九作　波打ちぎわ</div>
+    <p>波が寄せて、しろい泡を置いていく。</p>
+    <p>そして、ゆっくり、返していく。</p>
+    <p>いちばん長いのは、波と波の、あいだ。</p>
+    <p>その間（ま）も、あなたのもの。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="18-hoshizora.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 波打ちぎわ — 夜明け前の、しずかな渚。
+ * 波がひとつ、ゆっくり寄せて、しろい泡を置き、ためらってから、ゆっくり返していく。
+ * いちばん長いのは、波と波の「あいだ」——渚は、ただ待っている。それも間（ま）。
+ * 返したあとの濡れた砂は、しばらく夜明けの色をうつし、やがて静かに乾いていく。
+ * 急がない。満ちては引く、そのくり返しだけが、ずっとここにある。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,hY,shoreBase,reachMax,hiY,lastR=0;
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    hY=h*0.30;            // 水平線
+    shoreBase=h*0.42;     // 波が引ききったときの水際（海ぎわ・上のほう）
+    reachMax=h*0.30;      // いちばん寄せたときに、手前へ伸びる量
+    hiY=shoreBase;        // 濡れた砂の、いちばん手前の跡
+  }
+  resize(); addEventListener('resize',resize);
+
+  function easeOutCubic(x){ return 1-Math.pow(1-x,3); }
+  function easeInOutSine(x){ return -(Math.cos(Math.PI*x)-1)/2; }
+
+  // 一周（寄せる→ひと呼吸→返す→間）の、ゆっくりしたうねり。0=引ききり, 1=寄せきり。
+  const P=12.5;
+  function reach(t){
+    let p=(t % P)/P; if(p<0) p+=1;
+    if(p<0.22) return easeOutCubic(p/0.22);                 // 寄せる（だんだんゆるむ）
+    if(p<0.30) return 1;                                     // いちばん上で、ひと呼吸
+    if(p<0.60) return 1-easeInOutSine((p-0.30)/0.30);        // 返す（よりゆっくり）
+    return 0;                                                // 間——波打ちぎわは、ただ待つ
+  }
+
+  // 水際の高さ。ごくわずかに、横へうねる。
+  function edgeY(x,t,r){
+    const u=(Math.sin(x*0.0016+t*0.22)+0.5*Math.sin(x*0.0041-t*0.17))*4*dpr*(0.35+0.65*r);
+    return shoreBase + reachMax*r + u;
+  }
+
+  function drawScene(t,dt){
+    const r=reach(t);
+    const speed=Math.min(1, Math.abs(r-lastR)/Math.max(dt,0.0001)*2.2); lastR=r;
+
+    // 空 — 夜明け前の、深い藍。
+    const sky=ctx.createLinearGradient(0,0,0,hY);
+    sky.addColorStop(0,'#0b0d16'); sky.addColorStop(1,'#1a1824');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,w,hY);
+
+    // 海 — 水平線から下を、冷たく深い水で。
+    const sea=ctx.createLinearGradient(0,hY,0,h);
+    sea.addColorStop(0,'#10151f'); sea.addColorStop(1,'#0a0e15');
+    ctx.fillStyle=sea; ctx.fillRect(0,hY,w,h-hY);
+
+    // 水平線ぎわの、ほのかに暖かい、夜明けの気配。
+    ctx.globalCompositeOperation='lighter';
+    const glow=ctx.createRadialGradient(w*0.5,hY,0,w*0.5,hY,Math.max(w,h)*0.6);
+    glow.addColorStop(0,'rgba(255,196,150,0.10)');
+    glow.addColorStop(0.5,'rgba(255,176,140,0.03)');
+    glow.addColorStop(1,'rgba(255,176,140,0)');
+    ctx.fillStyle=glow; ctx.fillRect(0,0,w,h);
+
+    // 遠い海面の、ごく淡いさざめき。
+    for(let i=0;i<5;i++){
+      const yy=hY + (i+0.5)*(shoreBase-hY)/5 + Math.sin(t*0.3+i*1.7)*2*dpr;
+      const a=0.05*(1-i/6);
+      const g=ctx.createLinearGradient(0,yy,w,yy);
+      g.addColorStop(0,'rgba(200,214,240,0)');
+      g.addColorStop(0.5,'rgba(210,222,245,'+a+')');
+      g.addColorStop(1,'rgba(200,214,240,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,yy-dpr,w,2*dpr);
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // 水際の線をつくる。
+    const midE=edgeY(w*0.5,t,r);
+    const step=Math.max(6*dpr,10);
+    const pts=[];
+    for(let x=0;x<=w+step;x+=step) pts.push([x, edgeY(x,t,r)]);
+
+    // 濡れた砂の跡 — 波がいちばん手前まで来た位置を覚えておき、ゆっくり乾いていく。
+    if(midE>hiY) hiY=midE;
+    else hiY += (midE-hiY)*(1-Math.pow(0.5, dt/5.0));   // 乾き（半減期 約5秒）
+
+    // 砂 — 水際から下、手前いっぱいまで。
+    ctx.beginPath();
+    ctx.moveTo(0,pts[0][1]);
+    for(const [x,y] of pts) ctx.lineTo(x,y);
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    const sand=ctx.createLinearGradient(0,shoreBase,0,h);
+    sand.addColorStop(0,'#0e0c10'); sand.addColorStop(1,'#17120c');
+    ctx.fillStyle=sand; ctx.fill();
+
+    // 濡れた砂のつや — 水際のすぐ下に、夜明けの色をうっすらうつす帯。乾くほど薄れる。
+    const wetSpan=hiY-midE;
+    if(wetSpan>1){
+      const wet=ctx.createLinearGradient(0,midE,0,hiY);
+      wet.addColorStop(0,'rgba(255,206,164,0.11)');
+      wet.addColorStop(0.5,'rgba(150,150,170,0.05)');
+      wet.addColorStop(1,'rgba(120,120,140,0)');
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0,pts[0][1]);
+      for(const [x,y] of pts) ctx.lineTo(x,y);
+      ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle=wet; ctx.fillRect(0,midE-2*dpr,w,wetSpan+4*dpr);
+      ctx.restore();
+    }
+
+    // 泡の線 — 動いているほど白く、間（ま）のあいだは、そっと静まる。
+    const foamA=0.16+0.5*speed;
+    ctx.globalCompositeOperation='lighter';
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.strokeStyle='rgba(255,247,236,'+(foamA*0.5)+')';
+    ctx.lineWidth=5*dpr;
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(const [x,y] of pts) ctx.lineTo(x,y); ctx.stroke();
+    ctx.strokeStyle='rgba(255,252,246,'+foamA+')';
+    ctx.lineWidth=1.6*dpr;
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(const [x,y] of pts) ctx.lineTo(x,y); ctx.stroke();
+
+    // 泡の、こまかな粒。寄せ・返しのときだけ、ほのかに。
+    if(speed>0.08){
+      const n=Math.round(40*speed);
+      for(let i=0;i<n;i++){
+        const x=Math.random()*w;
+        const y=edgeY(x,t,r)+(Math.random()-0.3)*10*dpr;
+        const a=foamA*Math.random()*0.5;
+        ctx.fillStyle='rgba(255,250,242,'+a+')';
+        ctx.beginPath(); ctx.arc(x,y,(0.6+Math.random()*1.1)*dpr,0,7); ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  let last=performance.now(), start=last;
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+    drawScene(t,dt);
+    requestAnimationFrame(loop);
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、波が返りかけた、濡れた砂の残る一瞬を静かに置く。
+    hiY=shoreBase+reachMax*0.9;
+    drawScene(5.2, 0.016);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>

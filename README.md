@@ -29,6 +29,7 @@
 | 16 | [すすき](works/16-susuki.html) | 揺れても、折れはしない。 |
 | 17 | [落ち葉](works/17-ochiba.html) | 落ちることも、まだ、途中。 |
 | 18 | [星ぞら](works/18-hoshizora.html) | 遅れても、その光が消えることはない。 |
+| 19 | [波打ちぎわ](works/19-nami-uchigiwa.html) | いちばん長いのは、波と波の、あいだ。 |
 
 入口は [`index.html`](index.html)。
 
