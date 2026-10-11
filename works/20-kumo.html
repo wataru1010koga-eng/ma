@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>雲  — 間（ま）</title>
+<meta name="description" content="間（ま）第二十作『雲』。どこへ行くかは、決めなくていい。" />
+<style>
+  :root { --bg:#0b0d13; --ink:#e7e3da; --ink-dim:#6b6a63; --warm:#ffdcb0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.4s ease forwards;
+    text-shadow:0 1px 28px rgba(6,8,16,0.9);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.4s;}
+  .poem p:nth-of-type(3){animation-delay:5.6s;}
+  .poem p:nth-of-type(4){animation-delay:7.8s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--warm); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="雲">
+    <div class="title">第二十作　雲</div>
+    <p>雲が、ゆっくり形を変えていく。</p>
+    <p>舟に見えて、鳥に見えて、</p>
+    <p>やがて、どちらでもなくなる。</p>
+    <p>どこへ行くかは、決めなくていい。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="19-nami-uchigiwa.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 雲 — 日が落ちたあとの、まだ藍のうすい空。
+ * やわらかな雲が、いくつも、別々のゆっくりした速さで横に流れていく。
+ * ひとつの雲は近づいて見ると小さな光のかたまりの寄り集まりで、
+ * それぞれが静かに揺らぐから、雲ぜんたいの形も、見ているうちにほどけて変わる。
+ * 舟に見えて、鳥に見えて、やがてどちらでもなくなる。
+ * 地平にはひとすじ、消えのこりの暖かい光。急がない。雲は、どこへも急がない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,horizon,clouds=[];
+
+  function rand(a,b){ return a+Math.random()*(b-a); }
+
+  // ひとつの雲 — いくつかの柔らかいふくらみの寄り集まり。
+  function makeCloud(startX){
+    const yf=rand(0.16,0.60);                 // 空のどのあたりを流れるか
+    const depth=yf;                           // 下（手前）ほど大きく、速く
+    const scale=(0.7+depth*1.1);
+    const unit=Math.min(w,h);
+    const cw=unit*rand(0.22,0.42)*scale;      // 雲の横はば
+    const ch=cw*rand(0.18,0.30);              // 高さ（ひらたい）
+    const n=Math.round(rand(4,7));
+    const blobs=[];
+    for(let i=0;i<n;i++){
+      const u=(i/(n-1))-0.5;                   // -0.5〜0.5
+      blobs.push({
+        dx:u*cw*0.9 + rand(-1,1)*cw*0.06,
+        dy:(Math.random()-0.5)*ch*0.6 + (0.5-Math.abs(u))*ch*-0.3,
+        r:ch*rand(0.75,1.25)*(1-Math.abs(u)*0.4),
+        wobA:unit*rand(0.004,0.012),           // 揺らぎのはば
+        wobS:rand(0.05,0.14),                  // 揺らぎの遅さ
+        wobP:Math.random()*Math.PI*2
+      });
+    }
+    return {
+      x:startX, y:h*yf, cw, ch, blobs, depth,
+      speed:unit*(0.0016+depth*0.0042)*dpr,    // px/秒（下ほど速い。でもごく遅い）
+      alpha:0.12+ (1-depth)*0.06,              // 上の雲ほど淡い
+      breathS:rand(0.03,0.07), breathP:Math.random()*Math.PI*2,
+      warm:depth                               // 下の雲ほど残照をうっすら含む
+    };
+  }
+
+  function makeClouds(){
+    clouds=[];
+    const count=6;
+    const span=w*1.5;                          // 画面の外にもひかえている
+    for(let i=0;i<count;i++){
+      const c=makeCloud(-w*0.25 + (i/count)*span + rand(-w*0.08,w*0.08));
+      clouds.push(c);
+    }
+    clouds.sort((a,b)=>a.depth-b.depth);       // 奥から手前へ重ねる
+  }
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    horizon=h*0.78;
+    makeClouds();
+  }
+  resize(); addEventListener('resize',resize);
+
+  function drawSky(){
+    // 空 — 日の落ちたあとの、藍のうすいグラデーション。
+    const sky=ctx.createLinearGradient(0,0,0,h);
+    sky.addColorStop(0,'#0a0c13');
+    sky.addColorStop(0.55,'#111523');
+    sky.addColorStop(0.82,'#1b1c28');
+    sky.addColorStop(1,'#20202b');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
+
+    // 地平の、ひとすじの残照。暖色をひとさじだけ。
+    ctx.globalCompositeOperation='lighter';
+    const glow=ctx.createLinearGradient(0,horizon-h*0.22,0,horizon+h*0.05);
+    glow.addColorStop(0,'rgba(255,170,110,0)');
+    glow.addColorStop(0.7,'rgba(255,168,110,0.07)');
+    glow.addColorStop(1,'rgba(255,196,150,0.13)');
+    ctx.fillStyle=glow; ctx.fillRect(0,horizon-h*0.22,w,h*0.27);
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  function drawCloud(c,t){
+    const breath=0.75+0.25*Math.sin(t*c.breathS+c.breathP);
+    const a=c.alpha*breath;
+    ctx.globalCompositeOperation='lighter';
+    for(const b of c.blobs){
+      const bx=c.x + b.dx + Math.sin(t*b.wobS+b.wobP)*b.wobA;
+      const by=c.y + b.dy + Math.cos(t*b.wobS*0.8+b.wobP)*b.wobA*0.5;
+      const r=b.r*(1+0.12*Math.sin(t*b.wobS*0.7+b.wobP*1.3));
+      const g=ctx.createRadialGradient(bx,by,0,bx,by,r);
+      // 下の雲は、残照をうっすら含んで、ほのかに暖かい。
+      const warm=c.warm;
+      const cr=Math.round(176+warm*40), cg=Math.round(184+warm*8), cb=Math.round(204-warm*34);
+      g.addColorStop(0,`rgba(${cr},${cg},${cb},${a})`);
+      g.addColorStop(0.6,`rgba(${cr},${cg},${cb},${a*0.35})`);
+      g.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(bx,by,r,0,7); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  function step(dt){
+    const margin=w*0.55;
+    for(const c of clouds){
+      c.x+=c.speed*dt;
+      if(c.x - c.cw > w+margin){               // 右へ流れきったら、左からまた
+        c.x=-margin-c.cw*0.5;
+        c.y=h*rand(0.16,0.60);
+      }
+    }
+  }
+
+  let last=performance.now(), start=last;
+  function loop(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now;
+    const t=(now-start)/1000;
+    step(dt);
+    drawSky();
+    for(const c of clouds) drawCloud(c,t);
+    requestAnimationFrame(loop);
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、雲がいくつか浮かんだ、ひとつの静かな空を置く。
+    drawSky();
+    for(const c of clouds) drawCloud(c,8.0);
+  } else {
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
