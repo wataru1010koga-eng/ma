@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>霜  — 間（ま）</title>
+<meta name="description" content="間（ま）第二十二作『霜』。朝には、とける。それでいい。" />
+<style>
+  :root { --bg:#090b10; --ink:#dfe7ee; --ink-dim:#5f6a76; --cold:#bcd6ec; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.4s ease forwards;
+    text-shadow:0 1px 26px rgba(6,9,14,0.92);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.2s;}
+  .poem p:nth-of-type(2){animation-delay:3.4s;}
+  .poem p:nth-of-type(3){animation-delay:5.6s;}
+  .poem p:nth-of-type(4){animation-delay:7.8s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--cold); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="霜">
+    <div class="title">第二十二作　霜</div>
+    <p>眠っているあいだに、</p>
+    <p>だれにも見られないまま、</p>
+    <p>窓いちめんに、こまかな葉脈が、ひろがっていた。</p>
+    <p>朝には、とける。それでいい。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="21-senkou-hanabi.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 霜 — 冷えきった夜のあいだに、窓いちめんに降りていく初霜。
+ * だれにも見られないまま、ちいさな葉脈（羊歯のような結晶）が、
+ * ふちから内へ、ごく静かに枝わかれしながら育っていく。
+ * 冷たく澄んだ光を一さじ。実際よりずっとゆっくり。
+ * 「間」は、育ってから、朝にとけるまでの、この見られない時間。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,unit,segs=[],maxOrder=0,GROW=0;
+
+  function rand(a,b){ return a+Math.random()*(b-a); }
+
+  // ひとつの羊歯（結晶）を再帰的に組み立てる。
+  // o0 は「種からの道のり」＝この枝が育ちはじめる頃合い。外へ向かって順に現れる。
+  function buildFeather(sx,sy,ang,len,depth,o0,out){
+    const tx=sx+Math.cos(ang)*len, ty=sy+Math.sin(ang)*len;
+    out.push({ax:sx,ay:sy,bx:tx,by:ty,o0:o0,o1:o0+len,w:depth+1});
+    if(o0+len>maxOrder) maxOrder=o0+len;
+    if(depth<=0) return;
+    const ribs=5;
+    for(let i=1;i<=ribs;i++){
+      const p=i/(ribs+1);                 // 軸上の位置 0..1
+      const d=p*len;                       // 種からの距離
+      const rx=sx+Math.cos(ang)*d, ry=sy+Math.sin(ang)*d;
+      const rlen=len*0.5*(1-p*0.5);        // 先へいくほど短い肋
+      const spread=0.52+rand(-0.08,0.12);
+      buildFeather(rx,ry,ang-spread,rlen,depth-1,o0+d,out);
+      buildFeather(rx,ry,ang+spread,rlen,depth-1,o0+d,out);
+    }
+  }
+
+  // 四隅と辺のふちに種を置き、内へ向かって順に（少しずつ遅れて）育たせる。
+  function seed(){
+    segs=[]; maxOrder=0;
+    const L=unit*0.3;
+    const seeds=[
+      {x:0,       y:0,        a:0.62},
+      {x:w,       y:0,        a:Math.PI-0.62},
+      {x:0,       y:h,        a:-0.62},
+      {x:w,       y:h,        a:Math.PI+0.62},
+      {x:w*0.5,   y:0,        a:Math.PI/2+0.2},
+      {x:0,       y:h*0.55,   a:0.05},
+      {x:w,       y:h*0.42,   a:Math.PI-0.05},
+    ];
+    const stagger=unit*0.06;               // 一本ずつ、遅れて降りはじめる
+    seeds.forEach((s,i)=>{
+      buildFeather(s.x,s.y,s.a,L*rand(0.82,1.12),2,i*stagger,segs);
+    });
+    GROW=maxOrder/42;                       // 全部そろうまで四十秒あまり。急がない。
+  }
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    unit=Math.min(w,h);
+    seed();
+  }
+  resize(); addEventListener('resize',resize);
+
+  function backdrop(){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#090b10'; ctx.fillRect(0,0,w,h);
+    // 窓の外の、冷たく澄んだ、ごく淡い明かり
+    const g=ctx.createRadialGradient(w*0.5,h*0.16,0,w*0.5,h*0.16,Math.max(w,h)*0.75);
+    g.addColorStop(0,'rgba(120,150,180,0.10)');
+    g.addColorStop(1,'rgba(120,150,180,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+  }
+
+  function render(g,shimmer){
+    backdrop();
+    ctx.globalCompositeOperation='lighter';
+    ctx.lineCap='round';
+    const tips=[];
+    for(let i=0;i<segs.length;i++){
+      const s=segs[i];
+      if(g<=s.o0) continue;
+      let bx=s.bx, by=s.by, growing=false;
+      if(g<s.o1){
+        const f=(g-s.o0)/(s.o1-s.o0);
+        bx=s.ax+(s.bx-s.ax)*f; by=s.ay+(s.by-s.ay)*f; growing=true;
+      }
+      const a=(0.34/s.w)*shimmer;          // 細い枝ほど淡く
+      ctx.strokeStyle='rgba(190,214,236,'+a+')';
+      ctx.lineWidth=Math.max(0.5,(4-s.w)*0.6)*dpr;
+      ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(bx,by); ctx.stroke();
+      if(growing) tips.push([bx,by]);
+    }
+    // 育ちつつある先端の、ちいさな白い結晶点
+    for(let i=0;i<tips.length;i++){
+      const t=tips[i];
+      const r=1.6*dpr;
+      const gg=ctx.createRadialGradient(t[0],t[1],0,t[0],t[1],r*3);
+      gg.addColorStop(0,'rgba(236,244,252,0.9)');
+      gg.addColorStop(1,'rgba(236,244,252,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(t[0],t[1],r*3,0,7); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、育ちきった霜を、静かに一枚だけ置く。
+    render(maxOrder*1.01,1);
+  } else {
+    let start=performance.now();
+    function loop(now){
+      const t=(now-start)/1000;
+      const g=t*GROW;                                   // ふちから内へ、ゆっくり育つ
+      const done=g>=maxOrder;
+      // 育ちきったら、ごくかすかに息をするように瞬く
+      const shimmer=done ? 0.9+0.1*Math.sin(t*0.5) : 1;
+      render(g,shimmer);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>

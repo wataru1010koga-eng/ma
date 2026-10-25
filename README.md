@@ -32,6 +32,7 @@
 | 19 | [波打ちぎわ](works/19-nami-uchigiwa.html) | いちばん長いのは、波と波の、あいだ。 |
 | 20 | [雲](works/20-kumo.html) | どこへ行くかは、決めなくていい。 |
 | 21 | [線香花火](works/21-senkou-hanabi.html) | 落ちるまでは、まだ、途中。 |
+| 22 | [霜](works/22-shimo.html) | 朝には、とける。それでいい。 |
 
 入口は [`index.html`](index.html)。
 
