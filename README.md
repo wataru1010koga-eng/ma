@@ -34,6 +34,7 @@
 | 21 | [線香花火](works/21-senkou-hanabi.html) | 落ちるまでは、まだ、途中。 |
 | 22 | [霜](works/22-shimo.html) | 朝には、とける。それでいい。 |
 | 23 | [ミルク](works/23-miruku.html) | まざるのは、あとでいい。 |
+| 24 | [水たまり](works/24-mizutamari.html) | 落ちたものは消えても、輪は、ひろがる。 |
 
 入口は [`index.html`](index.html)。
 

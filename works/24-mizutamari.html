@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>水たまり  — 間（ま）</title>
+<meta name="description" content="間（ま）第二十四作『水たまり』。落ちたものは消えても、輪は、しずかに、ひろがってゆく。" />
+<style>
+  :root { --bg:#070a0d; --ink:#dde6ee; --ink-dim:#5f6b78; --cool:#aec6e0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .poem {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start; gap:1.25em;
+    padding:clamp(2rem,9vw,9rem); pointer-events:none;
+  }
+  .poem .title { font-size:clamp(1rem,2.4vw,1.4rem); letter-spacing:.25em; color:var(--ink-dim); margin-bottom:1.5em; }
+  .poem p {
+    font-size:clamp(1.2rem,3.3vw,2.05rem); line-height:2.05; letter-spacing:.06em;
+    opacity:0; transform:translateY(10px); animation:in 3.4s ease forwards;
+    text-shadow:0 1px 28px rgba(5,8,11,0.92);
+  }
+  .poem p:nth-of-type(1){animation-delay:1.1s;}
+  .poem p:nth-of-type(2){animation-delay:3.4s;}
+  .poem p:nth-of-type(3){animation-delay:5.7s;}
+  .poem p:nth-of-type(4){animation-delay:8.0s;}
+  @keyframes in { to { opacity:1; transform:translateY(0); } }
+  nav.top { position:fixed; top:clamp(1.2rem,4vw,2.4rem); left:clamp(1.5rem,5vw,4rem); z-index:5; }
+  nav.top a { color:var(--cool); text-decoration:none; font-size:1.1rem; letter-spacing:.3em; opacity:.7; transition:opacity .4s; }
+  nav.top a:hover { opacity:1; }
+  nav.bottom { position:fixed; right:clamp(1.5rem,5vw,4rem); bottom:clamp(1.5rem,5vw,3rem); display:flex; gap:2em; font-size:.8rem; letter-spacing:.25em; }
+  nav.bottom a { color:var(--ink-dim); text-decoration:none; transition:color .4s; }
+  nav.bottom a:hover { color:var(--ink); }
+  @media (prefers-reduced-motion:reduce){ .poem p{animation:none;opacity:1;transform:none;} }
+</style>
+</head>
+<body>
+  <canvas id="c" aria-hidden="true"></canvas>
+  <nav class="top"><a href="../index.html" title="間 のトップへ">間</a></nav>
+
+  <div class="poem" role="article" aria-label="水たまり">
+    <div class="title">第二十四作　水たまり</div>
+    <p>雨は、もう、やんだ。</p>
+    <p>それでも軒から、ひとしずく。</p>
+    <p>落ちたものは消えても、</p>
+    <p>輪は、しずかに、ひろがってゆく。</p>
+  </div>
+
+  <nav class="bottom">
+    <a href="23-miruku.html">← 前の作品</a>
+    <a href="../index.html">間 →</a>
+  </nav>
+
+<script>
+/*
+ * 水たまり — 雨あがり。暗い水面に、冷たく澄んだ光がひとすじ映っている。
+ * ときおり、軒から一滴だけ落ちてきて、同心円の輪を生む。
+ * 輪は、落ちた点を離れて、ゆっくりと外へひろがり、やがて薄れて消える。
+ * 落とした滴はもうそこに無いのに、輪だけが、ひとりで広がりつづける。
+ * 水面を斜めに見ているので、輪は横長の楕円。間（ま）は、滴と滴のあいだの、長い静けさ。
+ * 寒色をひとさじ。急がない。
+ */
+(function(){
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let w,h,dpr,unit;
+  const SQUASH=0.40;                 // 水面を斜めに見た、楕円のつぶれ具合
+  let ripples=[], drops=[], nextDrop=0, t=0;
+
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=canvas.width=Math.floor(innerWidth*dpr);
+    h=canvas.height=Math.floor(innerHeight*dpr);
+    canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+    unit=Math.min(w,h);
+  }
+  resize(); addEventListener('resize',resize);
+
+  // 映り込む光のおよその位置（画面やや右上に灯り、水面に縦長ににじむ）
+  function lightX(){ return w*0.62; }
+
+  // 次に一滴が落ちてくる場所を決める（水面＝画面の下半分あたりに散らす）
+  function pickImpact(){
+    return { x: w*(0.2+Math.random()*0.6), y: h*(0.5+Math.random()*0.32) };
+  }
+
+  // 一滴、落下をはじめる
+  function startDrop(){
+    const im=pickImpact();
+    drops.push({ x:im.x, iy:im.y, y:im.y-h*(0.34+Math.random()*0.16), vy:0, im });
+  }
+
+  function spawnRipple(x,y){
+    ripples.push({ x, y, age:0,
+      max: 7.5+Math.random()*3.5,          // 秒。ゆっくり生きて、ゆっくり消える
+      speed: unit*(0.055+Math.random()*0.02), // 広がる速さ
+      amp: 0.9+Math.random()*0.3 });
+  }
+
+  // 背景 — 雨あがりの濡れた路面と、冷たく澄んだ映り込み
+  function backdrop(){
+    const g=ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#090d12');
+    g.addColorStop(0.5,'#070a0e');
+    g.addColorStop(1,'#04060a');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+
+    // 水面に、ひとすじ縦長ににじむ冷たい灯り。ごくわずかに揺れる。
+    const lx=lightX()+Math.sin(t*0.25)*unit*0.006;
+    const refl=ctx.createRadialGradient(lx,h*0.66,0,lx,h*0.66,unit*0.5);
+    refl.addColorStop(0,'rgba(150,185,220,0.12)');
+    refl.addColorStop(0.4,'rgba(120,155,195,0.05)');
+    refl.addColorStop(1,'rgba(120,155,195,0)');
+    ctx.save();
+    ctx.translate(lx,h*0.66); ctx.scale(0.34,1.0); ctx.translate(-lx,-h*0.66);
+    ctx.fillStyle=refl; ctx.fillRect(0,0,w,h);
+    ctx.restore();
+  }
+
+  function vignette(){
+    const v=ctx.createRadialGradient(w*0.5,h*0.58,unit*0.3,w*0.5,h*0.58,unit*0.8);
+    v.addColorStop(0,'rgba(4,6,10,0)');
+    v.addColorStop(1,'rgba(3,4,8,0.85)');
+    ctx.fillStyle=v; ctx.fillRect(0,0,w,h);
+  }
+
+  // 同心円の輪をひとつ描く（楕円・外へいくほど淡く細く）
+  function drawRipple(p){
+    const k=p.age/p.max;                 // 0→1
+    if(k>=1) return;
+    const r=p.speed*p.age;               // 外へ広がる半径
+    const fade=Math.sin(Math.min(k,1)*Math.PI);  // 生まれて薄れる
+    const base=0.20*p.amp*fade*(1-k*0.4);
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    ctx.scale(1,SQUASH);
+    // 本体の輪と、内側にもう一本、ほどけるように添える
+    for(let n=0;n<2;n++){
+      const rr=r-n*unit*0.022;
+      if(rr<=0) continue;
+      const a=base*(n===0?1:0.5);
+      ctx.beginPath();
+      ctx.arc(0,0,rr,0,Math.PI*2);
+      ctx.lineWidth=Math.max(unit*0.0016,(unit*0.004)*(1-k*0.7));
+      ctx.strokeStyle='rgba(176,205,232,'+a+')';
+      ctx.stroke();
+    }
+    // 落ちた中心に、消えのこる小さな照り
+    if(k<0.25){
+      const c=0.18*(1-k/0.25)*p.amp;
+      const g=ctx.createRadialGradient(0,0,0,0,0,unit*0.02);
+      g.addColorStop(0,'rgba(200,222,244,'+c+')');
+      g.addColorStop(1,'rgba(200,222,244,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,unit*0.02,0,7); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // 落ちてくる一滴（細い縦の光）
+  function drawDrop(d){
+    const g=ctx.createLinearGradient(d.x,d.y-unit*0.03,d.x,d.y);
+    g.addColorStop(0,'rgba(190,214,238,0)');
+    g.addColorStop(1,'rgba(190,214,238,0.5)');
+    ctx.strokeStyle=g; ctx.lineWidth=Math.max(1,unit*0.0016);
+    ctx.beginPath(); ctx.moveTo(d.x,d.y-unit*0.03); ctx.lineTo(d.x,d.y); ctx.stroke();
+  }
+
+  function render(){
+    backdrop();
+    ctx.globalCompositeOperation='lighter';
+    for(const p of ripples) drawRipple(p);
+    for(const d of drops) drawDrop(d);
+    ctx.globalCompositeOperation='source-over';
+    vignette();
+  }
+
+  function step(dt){
+    t+=dt;
+    // 落下
+    for(let i=drops.length-1;i>=0;i--){
+      const d=drops[i];
+      d.vy+=unit*2.4*dt; d.y+=d.vy*dt;
+      if(d.y>=d.iy){ spawnRipple(d.im.x,d.im.y); drops.splice(i,1); }
+    }
+    // 輪の成長
+    for(let i=ripples.length-1;i>=0;i--){
+      ripples[i].age+=dt;
+      if(ripples[i].age>=ripples[i].max) ripples.splice(i,1);
+    }
+    // 新しい一滴は、たっぷり間をおいて。待つ時間も作品のうち。
+    nextDrop-=dt;
+    if(nextDrop<=0){ startDrop(); nextDrop=3.4+Math.random()*3.6; }
+  }
+
+  if(reduce){
+    // 動きを止める設定なら、輪が重なったひと時を、静かに一枚だけ置く。
+    const pts=[[0.34,0.60],[0.6,0.72],[0.5,0.52]];
+    pts.forEach((pt,i)=>{ spawnRipple(w*pt[0],h*pt[1]); ripples[i].age=3+i*1.4; });
+    for(let k=0;k<30;k++) t+=0.03;
+    render();
+  } else {
+    let last=performance.now();
+    // はじめに一滴だけ、そっと落としておく
+    startDrop();
+    function loop(now){
+      const dt=Math.min((now-last)/1000,0.05); last=now;
+      step(dt); render();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
+</body>
+</html>
